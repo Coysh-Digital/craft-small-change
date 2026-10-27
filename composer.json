@@ -1,0 +1,80 @@
+{
+    "name": "coyshdigital/craft-small-change",
+    "description": "A small, Stripe-only shop and donations plugin for Craft CMS. Built for charities, churches and small organisations that don't need Craft Commerce.",
+    "type": "craft-plugin",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "craft-plugin",
+        "stripe",
+        "donations",
+        "gift-aid",
+        "shop",
+        "charity"
+    ],
+    "license": "proprietary",
+    "support": {
+        "email": "support@coysh.digital",
+        "issues": "https://github.com/Coysh-Digital/craft-small-change/issues",
+        "source": "https://github.com/Coysh-Digital/craft-small-change",
+        "docs": "https://github.com/Coysh-Digital/craft-small-change/tree/main/docs"
+    },
+    "authors": [
+        {
+            "name": "Coysh Digital",
+            "homepage": "https://coysh.digital"
+        }
+    ],
+    "require": {
+        "php": ">=8.2",
+        "craftcms/cms": "^5.0.0",
+        "stripe/stripe-php": "^15.0 || ^16.0 || ^17.0 || ^18.0 || ^19.0 || ^20.0 || ^21.0 || ^22.0"
+    },
+    "require-dev": {
+        "codeception/codeception": "^5.0",
+        "codeception/module-asserts": "^3.0",
+        "codeception/module-yii2": "^1.1",
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^2.0",
+        "vlucas/phpdotenv": "^5.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "coyshdigital\\smallchange\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "coyshdigital\\smallchange\\tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "name": "Small Change",
+        "handle": "small-change",
+        "developer": "Coysh Digital",
+        "developerUrl": "https://coysh.digital",
+        "documentationUrl": "https://github.com/Coysh-Digital/craft-small-change/tree/main/docs",
+        "changelogUrl": "https://raw.githubusercontent.com/Coysh-Digital/craft-small-change/main/CHANGELOG.md",
+        "class": "coyshdigital\\smallchange\\Plugin"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        },
+        "sort-packages": true
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --fix --ansi",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "test": "codecept run"
+    }
+}

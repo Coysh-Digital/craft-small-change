@@ -1,0 +1,49 @@
+{% extends 'small-change/_layout' %}
+{% set title = 'Discount codes'|t('small-change') %}
+{% set selectedSubnavItem = 'discounts' %}
+{% set crumbs = [{ label: 'Small Change'|t('small-change'), url: url('small-change') }] %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="{{ url('small-change/discounts/new') }}">{{ 'New discount code'|t('small-change') }}</a>
+{% endblock %}
+
+{% block content %}
+    {% set currency = craft.smallChange.currency %}
+    {% if discounts %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Name'|t('small-change') }}</th>
+                    <th>{{ 'Code'|t('small-change') }}</th>
+                    <th>{{ 'Discount'|t('small-change') }}</th>
+                    <th>{{ 'Used'|t('small-change') }}</th>
+                    <th>{{ 'Status'|t('small-change') }}</th>
+                    <th class="thin"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for discount in discounts %}
+                    <tr data-id="{{ discount.id }}" data-name="{{ discount.name|e }}">
+                        <th scope="row"><a href="{{ url('small-change/discounts/' ~ discount.id) }}">{{ discount.name }}</a></th>
+                        <td><code>{{ discount.code }}</code></td>
+                        <td>{{ discount.describe(currency) }}{% if discount.minSubtotal %} <span class="light">· {{ 'over {amount}'|t('small-change', { amount: craft.smallChange.formatMoney(discount.minSubtotal, null, true) }) }}</span>{% endif %}</td>
+                        <td>{{ discount.uses }}{% if discount.maxUses %} / {{ discount.maxUses }}{% endif %}</td>
+                        <td><span class="status {{ discount.enabled ? 'green' : 'disabled' }}"></span>{{ discount.enabled ? 'Enabled'|t('app') : 'Disabled'|t('app') }}</td>
+                        <td class="thin"><a class="delete icon" title="{{ 'Delete'|t('app') }}" role="button"></a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="zilch">{{ 'No discount codes yet.'|t('small-change') }}</p>
+    {% endif %}
+{% endblock %}
+
+{% js %}
+    new Craft.AdminTable({
+        tableSelector: '.data',
+        noObjectsSelector: '.zilch',
+        deleteAction: 'small-change/discounts/delete',
+        confirmDeleteMessage: {{ 'Are you sure you want to delete "{name}"? Orders that used it keep the code as text.'|t('small-change')|json_encode|raw }},
+    });
+{% endjs %}

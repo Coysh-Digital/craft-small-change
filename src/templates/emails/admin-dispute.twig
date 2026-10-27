@@ -1,0 +1,12 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'A payment was disputed' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>The cardholder's bank has opened a dispute on order <strong>{{ order.number }}</strong> ({{ order.email }}).</p>
+    {% endif %}
+    <p style="margin:0;">Amount: {{ craft.smallChange.formatMoney(context.amount|default(order.totalPaid), order.currency) }}</p>
+    {% if context.reason %}<p style="margin:0;">Reason: {{ context.reason }}</p>{% endif %}
+    <p>You can respond with evidence from your Stripe Dashboard, where the deadline is shown on the dispute.</p>
+    <p><a href="{{ cpUrl('small-change/orders/' ~ order.id) }}">View the order</a></p>
+{% endblock %}

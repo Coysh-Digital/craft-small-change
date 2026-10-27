@@ -1,0 +1,44 @@
+{# The Gift Aid tick box and the details HMRC needs, shown only when the site offers Gift Aid.
+   Without JavaScript the address fields stay visible and are only required if the box is ticked. #}
+{% if craft.smallChange.giftAid.enabled %}
+    {% set order = order ?? null %}
+    {# What was saved or posted last time, so going back to this page doesn't blank the address. #}
+    {% set home = order ? order.billingAddress : null %}
+    <fieldset data-gift-aid>
+        <legend>Gift Aid</legend>
+
+        {# An unticked box posts nothing, so this makes "no" a real answer (and lets a donor change their mind). #}
+        {{ hiddenInput('giftAid', '') }}
+        <label>
+            <input type="checkbox" name="giftAid" value="1" data-gift-aid-toggle{% if order and order.giftAidDeclared %} checked{% endif %}>
+            Yes, I would like to Gift Aid my donation
+        </label>
+        <p>{{ craft.smallChange.giftAid.declarationText }}</p>
+
+        <div data-gift-aid-fields>
+            <p>
+                <label>First name <input type="text" name="billingAddress[firstName]" value="{{ home.firstName ?? '' }}" autocomplete="given-name"></label>
+                {% if order and order.hasErrors('billingAddress.firstName') %}<span role="alert">{{ order.getFirstError('billingAddress.firstName') }}</span>{% endif %}
+            </p>
+            <p>
+                <label>Last name <input type="text" name="billingAddress[lastName]" value="{{ home.lastName ?? '' }}" autocomplete="family-name"></label>
+                {% if order and order.hasErrors('billingAddress.lastName') %}<span role="alert">{{ order.getFirstError('billingAddress.lastName') }}</span>{% endif %}
+            </p>
+            <p>
+                <label>House name or number and street <input type="text" name="billingAddress[addressLine1]" value="{{ home.addressLine1 ?? '' }}" autocomplete="address-line1"></label>
+                {% if order and order.hasErrors('billingAddress.addressLine1') %}<span role="alert">{{ order.getFirstError('billingAddress.addressLine1') }}</span>{% endif %}
+            </p>
+            <p>
+                <label>Address line 2 <input type="text" name="billingAddress[addressLine2]" value="{{ home.addressLine2 ?? '' }}" autocomplete="address-line2"></label>
+            </p>
+            <p>
+                <label>Town or city <input type="text" name="billingAddress[locality]" value="{{ home.locality ?? '' }}" autocomplete="address-level2"></label>
+            </p>
+            <p>
+                <label>Postcode <input type="text" name="billingAddress[postalCode]" value="{{ home.postalCode ?? '' }}" autocomplete="postal-code"></label>
+                {% if order and order.hasErrors('billingAddress.postalCode') %}<span role="alert">{{ order.getFirstError('billingAddress.postalCode') }}</span>{% endif %}
+            </p>
+            {{ hiddenInput('billingAddress[countryCode]', 'GB') }}
+        </div>
+    </fieldset>
+{% endif %}

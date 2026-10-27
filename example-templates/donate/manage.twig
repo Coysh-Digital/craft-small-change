@@ -1,0 +1,33 @@
+{# Lets a donor manage a recurring donation. They enter their email address and we send a link to Stripe's customer portal that works for 15 minutes. Served at /donate/manage. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Manage your recurring donation' %}
+
+{% block content %}
+    <h1>Manage your recurring donation</h1>
+
+    {# A request that can't be answered comes back to this page with the reason in the flash. The "sent" message below covers success. #}
+    {% set error = craft.app.session.getFlash('error') %}
+    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+
+    <p>Enter the email address you donated with and we'll send you a link. It works for 15 minutes.</p>
+
+    <form method="post" action="" accept-charset="UTF-8">
+        {% include '_small-change/csrf' %}
+        {{ actionInput('small-change/portal/request-link') }}
+        {{ redirectInput('donate/manage?sent=1') }}
+        {{ hiddenInput('returnUrl', siteUrl('donate/manage')|hash) }}
+
+        <p>
+            <label>
+                Email address
+                <input type="email" name="email" autocomplete="email" required>
+            </label>
+        </p>
+
+        <button type="submit">Email me a link</button>
+    </form>
+
+    {% if craft.app.request.getQueryParam('sent') %}
+        <p role="status">If that address has a recurring donation, we've sent it a link.</p>
+    {% endif %}
+{% endblock %}

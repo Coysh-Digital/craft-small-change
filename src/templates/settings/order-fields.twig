@@ -1,0 +1,37 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set fullPageForm = not readOnly %}
+{% set isDonation = slot == 'donation' %}
+{% set selectedSubnavItem = isDonation ? 'donationFields' : 'checkoutFields' %}
+{% set title = (isDonation ? 'Donation fields' : 'Checkout fields')|t('small-change') %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+] %}
+
+{% block content %}
+    {% if not readOnly %}
+        {{ actionInput(isDonation ? 'small-change/settings/save-donation-fields' : 'small-change/settings/save-order-fields') }}
+        {{ redirectInput(isDonation ? 'small-change/settings/donation-fields' : 'small-change/settings/order-fields') }}
+    {% endif %}
+
+    {% if isDonation %}
+        <p>{{ 'Every donor is asked for these fields on the donation form, and each donation shows the answers. Add a "dedication" or "how did you hear about us" field here, then print the fields with craft.smallChange.donationFields in your donation template. The shop basket does not ask for them.'|t('small-change') }}</p>
+    {% else %}
+        <p>{{ 'Every customer is asked for these fields at checkout, and each order shows the answers. Add a "gift message" or "dietary needs" field here, then print the fields with craft.smallChange.checkoutFields in your checkout template. Donation forms have their own set under Donation fields.'|t('small-change') }}</p>
+    {% endif %}
+    <p class="light">{{ 'Customers can fill in these field types: Plain Text, Number, Range, Dropdown, Radio Buttons, Checkboxes, Multi-select, Button Group, Lightswitch, Date, Time, Email and Country. Other types are ignored on the public form.'|t('small-change') }}</p>
+
+    {% if unsupported %}
+        <div class="warning with-icon">
+            <p>{{ 'These fields are in the layout but customers cannot fill them in, so they will always be empty:'|t('small-change') }}
+                {% for field in unsupported %}<strong>{{ field.name }}</strong> ({{ field.displayName() }}){% if not loop.last %}, {% endif %}{% endfor %}.
+            </p>
+        </div>
+    {% endif %}
+
+    {{ forms.fieldLayoutDesignerField({
+        fieldLayout: fieldLayout,
+        disabled: readOnly,
+    }) }}
+{% endblock %}

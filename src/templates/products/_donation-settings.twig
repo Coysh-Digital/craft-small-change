@@ -1,0 +1,56 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.textField({
+    label: 'Suggested amounts'|t('small-change'),
+    instructions: 'Amounts to offer as one-tap choices, separated by commas, in {currency}.'|t('small-change', { currency: currency }),
+    id: 'donation-suggested',
+    name: 'donationSuggested',
+    value: suggested,
+    placeholder: '5, 10, 25, 50',
+    disabled: static,
+    errors: product.getErrors('suggestedAmounts'),
+}) }}
+
+{{ forms.textField({
+    label: 'Minimum amount'|t('small-change'),
+    instructions: 'The smallest gift accepted, in {currency}. Leave blank for one whole {currency} unit.'|t('small-change', { currency: currency }),
+    id: 'donation-minimum',
+    name: 'donationMinimum',
+    value: minimum,
+    size: 8,
+    disabled: static,
+    errors: product.getErrors('minimumAmount'),
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Let donors enter their own amount'|t('small-change'),
+    instructions: 'When off, donors can only give one of the suggested amounts.'|t('small-change'),
+    id: 'donation-custom',
+    name: 'allowCustomAmount',
+    on: product.allowCustomAmount,
+    disabled: static,
+}) }}
+
+{{ forms.lightswitchField({
+    label: 'Allow monthly or yearly gifts'|t('small-change'),
+    instructions: 'Lets donors turn their gift into a regular donation. Stripe takes each payment automatically, and the donor can change or stop it themselves.'|t('small-change'),
+    id: 'donation-recurring',
+    name: 'allowRecurring',
+    on: product.allowRecurring,
+    toggle: 'donation-intervals',
+    disabled: static,
+}) }}
+
+<div id="donation-intervals"{% if not product.allowRecurring %} class="hidden"{% endif %}>
+    {{ forms.checkboxGroupField({
+        label: 'Intervals offered'|t('small-change'),
+        id: 'donation-interval-options',
+        name: 'recurringIntervals',
+        options: [
+            { value: 'month', label: 'Monthly'|t('small-change') },
+            { value: 'year', label: 'Yearly'|t('small-change') },
+        ],
+        values: intervals,
+        disabled: static,
+    }) }}
+</div>

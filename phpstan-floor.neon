@@ -1,0 +1,21 @@
+# Analysis against the oldest Craft the plugin supports. Craft 5.0.0's ElementQuery has no
+# generics, so OrderQuery and ProductQuery resolve to plain ElementInterface there and every
+# property, argument and return that depends on them is reported. That fallout is left out here;
+# the main config still checks it on the current Craft. Everything else, such as a method or
+# class that only exists in a later Craft, is still reported.
+includes:
+    - phpstan.neon
+
+parameters:
+    ignoreErrors:
+        -
+            identifier: generics.notCompatible
+            path: src/elements/db/*
+        -
+            message: '#array\|craft\\base\\ElementInterface#'
+        -
+            message: '#craft\\base\\ElementInterface given#'
+        -
+            message: '#craft\\base\\ElementInterface::\$#'
+        -
+            message: '#array<int, craft\\base\\ElementInterface>#'

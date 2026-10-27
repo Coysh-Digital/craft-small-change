@@ -1,0 +1,27 @@
+{# Shown after payment at /checkout/complete, and while a slow payment method is still processing. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Thank you' %}
+{% set order = craft.smallChange.recentOrder(craft.app.request.getQueryParam('number')) %}
+
+{% block content %}
+    {% if not order %}
+        <h1>Thank you</h1>
+        <p>We couldn't show your receipt here. If you paid, you'll find it in your email.</p>
+    {% elseif order.state == 'completed' %}
+        <h1>Thank you for your order</h1>
+        <p>Your reference is <strong>{{ order.number }}</strong>. A receipt is on its way to {{ order.email }}.</p>
+        <ul>
+            {% for line in order.lineItems %}
+                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+        <p>You paid {{ craft.smallChange.formatMoney(order.totalPaid, order.currency) }}.</p>
+        {% if order.requiresShipping %}<p>We'll post it to {{ order.shippingAddress.addressLine1 }}, {{ order.shippingAddress.postalCode }}.</p>{% endif %}
+    {% elseif order.paymentStatus == 'processing' %}
+        <h1>Your payment is processing</h1>
+        <p>Some payment methods take a little while. We'll email {{ order.email }} as soon as it's confirmed.</p>
+    {% else %}
+        <h1>We haven't received your payment</h1>
+        <p>You haven't been charged. <a href="/cart">Back to your basket</a>.</p>
+    {% endif %}
+{% endblock %}

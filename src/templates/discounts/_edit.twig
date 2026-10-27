@@ -1,0 +1,95 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'discounts' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Discount codes'|t('small-change'), url: url('small-change/discounts') },
+] %}
+
+{% block content %}
+    {{ actionInput('small-change/discounts/save') }}
+    {{ redirectInput('small-change/discounts') }}
+    {% if discount.id %}{{ hiddenInput('discountId', discount.id) }}{% endif %}
+
+    {{ forms.textField({
+        first: true,
+        label: 'Name'|t('small-change'),
+        instructions: 'For your own reference.'|t('small-change'),
+        id: 'name', name: 'name', value: discount.name, required: true, autofocus: true,
+        errors: discount.getErrors('name'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Code'|t('small-change'),
+        instructions: 'What customers type. Not case-sensitive.'|t('small-change'),
+        id: 'code', name: 'code', value: discount.code, required: true, class: 'code',
+        errors: discount.getErrors('code'),
+    }) }}
+
+    {{ forms.selectField({
+        label: 'Type'|t('small-change'),
+        id: 'type', name: 'type', value: discount.type,
+        options: [
+            { value: 'percent', label: 'Percentage off'|t('small-change') },
+            { value: 'fixed', label: 'Fixed amount off'|t('small-change') },
+        ],
+        toggle: true,
+        targetPrefix: 'type-',
+    }) }}
+
+    <div id="type-percent"{% if discount.type != 'percent' %} class="hidden"{% endif %}>
+        {{ forms.textField({
+            label: 'Percentage'|t('small-change'),
+            instructions: 'For example 10 or 12.5.'|t('small-change'),
+            id: 'percent', name: 'percent', value: percentValue, size: 6,
+            errors: discount.getErrors('percent'),
+        }) }}
+    </div>
+
+    <div id="type-fixed"{% if discount.type != 'fixed' %} class="hidden"{% endif %}>
+        {{ forms.textField({
+            label: 'Amount off ({currency})'|t('small-change', { currency: currency }),
+            id: 'amount', name: 'amount', value: amountValue, size: 8,
+            errors: discount.getErrors('amount'),
+        }) }}
+    </div>
+
+    <p class="light">{{ 'Discounts apply to products only. Donations are never discounted.'|t('small-change') }}</p>
+
+    {{ forms.textField({
+        label: 'Minimum spend on products ({currency})'|t('small-change', { currency: currency }),
+        instructions: 'Leave blank for no minimum.'|t('small-change'),
+        id: 'minSubtotal', name: 'minSubtotal', value: minSubtotalValue, size: 8,
+        errors: discount.getErrors('minSubtotal'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Maximum uses'|t('small-change'),
+        instructions: 'Across all customers. Leave blank for unlimited. A use is held while someone is paying and given back if they abandon the payment.'|t('small-change'),
+        id: 'maxUses', name: 'maxUses', value: discount.maxUses, size: 6,
+        errors: discount.getErrors('maxUses'),
+    }) }}
+
+    {{ forms.dateTimeField({
+        label: 'Valid from'|t('small-change'),
+        id: 'dateFrom', name: 'dateFrom', value: discount.dateFrom,
+        errors: discount.getErrors('dateFrom'),
+    }) }}
+
+    {{ forms.dateTimeField({
+        label: 'Valid until'|t('small-change'),
+        id: 'dateTo', name: 'dateTo', value: discount.dateTo,
+        errors: discount.getErrors('dateTo'),
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Enabled'|t('small-change'),
+        id: 'enabled', name: 'enabled', on: discount.enabled,
+    }) }}
+
+    {% if discount.id %}
+        <p class="light">{{ 'Used {uses} time(s).'|t('small-change', { uses: discount.uses }) }}</p>
+    {% endif %}
+{% endblock %}

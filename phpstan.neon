@@ -1,0 +1,18 @@
+includes:
+    - vendor/craftcms/phpstan/phpstan.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+    # The SDK feature checks are always true or always false for the one major
+    # installed, and CI runs both ends of the supported range.
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        -
+            identifier: function.alreadyNarrowedType
+            path: src/services/Stripe.php
+        # Responses are read as dynamic StripeObject properties so one code path works across SDK majors.
+        -
+            identifier: property.notFound
+            message: '#Stripe\\StripeObject::\$#'

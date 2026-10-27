@@ -1,0 +1,26 @@
+{# The webhook address and how to point Stripe at it, shared by the Stripe settings and the utility. #}
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.copytextField({
+    label: 'Webhook URL'|t('small-change'),
+    instructions: 'Stripe calls this address to tell Small Change about payments, refunds and recurring donations. Orders are not marked as paid until it does.'|t('small-change'),
+    id: 'small-change-webhook-url',
+    value: webhookUrl,
+}) }}
+
+{% if not webhookPublic %}
+    <p class="warning with-icon">{{ 'Stripe cannot reach this address from the internet. While developing, forward events to it with the Stripe CLI:'|t('small-change') }} <code>stripe listen --forward-to {{ webhookUrl }}</code></p>
+{% endif %}
+
+<p>{{ 'Create the endpoint in one of two ways:'|t('small-change') }}</p>
+<ul class="bullets">
+    <li>{{ 'Use the Register webhook endpoint with Stripe button. Small Change creates the endpoint with the right events and API version.'|t('small-change') }}</li>
+    <li>
+        {{ 'Or in your Stripe Dashboard, under Developers → Webhooks, add an endpoint for the URL above with a Snapshot payload (not Thin), API version {version} and these events:'|t('small-change', { version: apiVersion }) }}
+        <details>
+            <summary>{{ 'Events to subscribe to'|t('small-change') }}</summary>
+            <p class="light">{% for type in enabledEvents %}<code>{{ type }}</code>{{ not loop.last ? ', ' }}{% endfor %}</p>
+        </details>
+    </li>
+</ul>
+<p>{{ 'Either way Stripe shows the signing secret once. Put it in your .env file as STRIPE_WEBHOOK_SECRET.'|t('small-change') }}</p>

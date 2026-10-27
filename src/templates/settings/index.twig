@@ -1,0 +1,436 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = 'Settings'|t('small-change') %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = not readOnly %}
+
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Settings'|t('small-change'), url: url('small-change/settings') },
+] %}
+
+{% macro overridden(overrides, name) %}
+    {%- if name in overrides -%}
+        {{- 'This is set in config/small-change.php.'|t('small-change') -}}
+    {%- endif -%}
+{% endmacro %}
+
+{% from _self import overridden %}
+
+{% block content %}
+    {% if readOnly %}
+        <p class="warning with-icon">{{ 'Administrative changes are disallowed in this environment, so these settings can be read but not changed. Change them where you develop the site and deploy the project config.'|t('small-change') }}</p>
+    {% else %}
+        {{ actionInput('small-change/settings/save') }}
+        {{ redirectInput('small-change/settings') }}
+    {% endif %}
+
+    <div id="general"{% if selectedTab != 'general' %} class="hidden"{% endif %}>
+        {{ forms.textField({
+            label: 'Currency'|t('small-change'),
+            instructions: currencyLocked ? 'One currency for the whole install. It is fixed now that real payments have been taken in it.'|t('small-change') : 'One currency for the whole install, as a three-letter code such as GBP or EUR. It can change until the first live order.'|t('small-change'),
+            id: 'currency',
+            name: 'settings[currency]',
+            value: settings.currency,
+            size: 4,
+            maxlength: 3,
+            required: true,
+            errors: settings.getErrors('currency'),
+            disabled: 'currency' in overrides or readOnly or currencyLocked,
+            warning: overridden(overrides, 'currency'),
+        }) }}
+
+        {% set priced = {
+            products: '{n, plural, one{# product} other{# products}}',
+            shippingMethods: '{n, plural, one{# delivery method} other{# delivery methods}}',
+            discountCodes: '{n, plural, one{# fixed-amount discount code} other{# fixed-amount discount codes}}',
+            testOrders: '{n, plural, one{# test order} other{# test orders}}',
+        } %}
+
+        {% if currencyLocked and 'currency' not in overrides %}
+            <p class="light">{{ '{n, plural, one{# live order has} other{# live orders have}} been paid in {currency}, so the currency is permanent from here.'|t('small-change', { n: currencyHolders.liveOrders, currency: settings.currency }) }}</p>
+        {% elseif currencyHolders|filter((n, kind) => kind in priced|keys)|length and 'currency' not in overrides and not readOnly %}
+            <div>
+                <p>{{ 'Amounts are stored without a currency of their own, so if you change it, prices keep their numbers: 5.00 in GBP becomes 5.00 in EUR. Check these afterwards:'|t('small-change') }}</p>
+                <ul class="bullets">
+                    {% for kind, message in priced %}
+                        {% if currencyHolders[kind] ?? 0 %}<li>{{ message|t('small-change', { n: currencyHolders[kind] }) }}.{% if kind == 'testOrders' %} <span class="light">{{ 'They keep the currency they were placed in.'|t('small-change') }}</span>{% endif %}</li>{% endif %}
+                    {% endfor %}
+                </ul>
+                <p class="light">{{ 'A currency with a different number of decimal places, such as JPY, can only be chosen once your products, delivery methods and fixed-amount codes are deleted.'|t('small-change') }}</p>
+            </div>
+        {% endif %}
+
+        {{ forms.autosuggestField({
+            label: 'Charity or organisation name'|t('small-change'),
+            instructions: 'Shown in the Gift Aid wording and in emails. Enter the name or an environment variable such as `$CHARITY_NAME`. Leave blank to use the site name.'|t('small-change'),
+            id: 'charityName',
+            name: 'settings[charityName]',
+            value: settings.charityName,
+            placeholder: siteName,
+            suggestEnvVars: true,
+            suggestAliases: false,
+            errors: settings.getErrors('charityName'),
+            disabled: 'charityName' in overrides or readOnly,
+            warning: overridden(overrides, 'charityName'),
+        }) }}
+    </div>
+
+    <div id="stripe"{% if selectedTab != 'stripe' %} class="hidden"{% endif %}>
+        <h2>{{ '1. API keys'|t('small-change') }}</h2>
+        <div>
+            <p>{{ 'Find your keys in the Stripe Dashboard under Developers → API keys.'|t('small-change') }} <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener">{{ 'Open API keys'|t('small-change') }}</a></p>
+            <p>{{ 'Put each key in your .env file and enter the variable name here, such as $STRIPE_SECRET_KEY. Raw keys are rejected so they never reach project config. Use your test keys until you are ready to take real payments.'|t('small-change') }}</p>
+        </div>
+
+        {{ forms.autosuggestField({
+            label: 'Secret key'|t('small-change'),
+            instructions: 'Starts `sk_test_` or `sk_live_` (or `rk_` for a restricted key).'|t('small-change'),
+            id: 'stripeSecretKey',
+            name: 'settings[stripeSecretKey]',
+            value: keyFields.stripeSecretKey,
+            placeholder: '$STRIPE_SECRET_KEY',
+            suggestEnvVars: true,
+            suggestAliases: false,
+            required: true,
+            errors: settings.getErrors('stripeSecretKey'),
+            disabled: 'stripeSecretKey' in overrides or readOnly,
+            warning: overridden(overrides, 'stripeSecretKey'),
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'Publishable key'|t('small-change'),
+            instructions: 'Starts `pk_test_` or `pk_live_`, and must be from the same mode as the secret key.'|t('small-change'),
+            id: 'stripePublishableKey',
+            name: 'settings[stripePublishableKey]',
+            value: keyFields.stripePublishableKey,
+            placeholder: '$STRIPE_PUBLISHABLE_KEY',
+            suggestEnvVars: true,
+            suggestAliases: false,
+            required: true,
+            errors: settings.getErrors('stripePublishableKey'),
+            disabled: 'stripePublishableKey' in overrides or readOnly,
+            warning: overridden(overrides, 'stripePublishableKey'),
+        }) }}
+
+        <hr>
+        <h2>{{ '2. Webhook'|t('small-change') }}</h2>
+
+        {% include 'small-change/_webhook' %}
+
+        {% if currentUser.admin and not readOnly %}
+            {% if stripeStatus.mode %}
+                <p>
+                    <button type="button" class="btn formsubmit" data-form="false" data-action="small-change/stripe/register-webhook" data-redirect="{{ 'small-change/settings/stripe'|hash }}" data-confirm="{{ 'Create a webhook endpoint at Stripe for this site? Its signing secret is shown once, and you will need to put it in your environment.'|t('small-change') }}">{{ 'Register webhook endpoint with Stripe'|t('small-change') }}</button>
+                </p>
+            {% else %}
+                <p class="light">{{ 'Save a secret key first, then you can register the endpoint from here.'|t('small-change') }}</p>
+            {% endif %}
+        {% endif %}
+
+        {{ forms.autosuggestField({
+            label: 'Webhook signing secret'|t('small-change'),
+            instructions: 'Starts `whsec_`. Stripe shows it once, when the endpoint is created. With the Stripe CLI, use the one `stripe listen` prints.'|t('small-change'),
+            id: 'stripeWebhookSecret',
+            name: 'settings[stripeWebhookSecret]',
+            value: keyFields.stripeWebhookSecret,
+            placeholder: '$STRIPE_WEBHOOK_SECRET',
+            suggestEnvVars: true,
+            suggestAliases: false,
+            errors: settings.getErrors('stripeWebhookSecret'),
+            disabled: 'stripeWebhookSecret' in overrides or readOnly,
+            warning: overridden(overrides, 'stripeWebhookSecret'),
+        }) }}
+
+        <hr>
+        <h2>{{ '3. Check the connection'|t('small-change') }}</h2>
+        <p class="light">{{ 'This reflects the saved settings. Every incoming webhook is listed on Utilities → Stripe.'|t('small-change') }}</p>
+
+        {% include 'small-change/_status' with { status: stripeStatus } only %}
+    </div>
+
+    <div id="checkout"{% if selectedTab != 'checkout' %} class="hidden"{% endif %}>
+        {{ forms.selectField({
+            label: 'Payment form'|t('small-change'),
+            instructions: 'Embedded keeps the donor on your site. Hosted sends them to a Stripe-hosted page.'|t('small-change'),
+            id: 'checkoutMode',
+            name: 'settings[checkoutMode]',
+            value: settings.checkoutMode,
+            options: [
+                { value: 'elements', label: 'Embedded on your site'|t('small-change') },
+                { value: 'hosted_page', label: 'Stripe-hosted page'|t('small-change') },
+            ],
+            errors: settings.getErrors('checkoutMode'),
+            disabled: 'checkoutMode' in overrides or readOnly,
+            warning: overridden(overrides, 'checkoutMode'),
+        }) }}
+    </div>
+
+    <div id="emails"{% if selectedTab != 'emails' %} class="hidden"{% endif %}>
+        {{ forms.lightswitchField({
+            label: 'Send emails'|t('small-change'),
+            instructions: 'Turn this off to stop every email Small Change sends, including the link donors can ask for to manage a recurring donation. Stripe sends its own emails separately; you set those up in your Stripe dashboard.'|t('small-change'),
+            id: 'sendEmails',
+            name: 'settings[sendEmails]',
+            on: settings.sendEmails,
+            toggle: 'email-options',
+            errors: settings.getErrors('sendEmails'),
+            disabled: 'sendEmails' in overrides or readOnly,
+            warning: overridden(overrides, 'sendEmails'),
+        }) }}
+
+        <div id="email-options"{% if not settings.sendEmails %} class="hidden"{% endif %}>
+            <hr>
+            <h2>{{ 'Sender'|t('small-change') }}</h2>
+            <p class="light">
+                {{ 'Anything you leave blank here is taken from the email settings of Craft itself.'|t('small-change') }}
+                {% if not readOnly %}<a href="{{ url('settings/email') }}">{{ "Open Craft's email settings"|t('small-change') }}</a>{% endif %}
+            </p>
+
+            {{ forms.textField({
+                label: 'From name'|t('small-change'),
+                instructions: systemEmail.name ? 'Blank sends as "{name}", from Craft.'|t('small-change', { name: systemEmail.name }) : 'Blank sends with no name, as Craft does.'|t('small-change'),
+                id: 'emailFromName',
+                name: 'settings[emailFromName]',
+                value: settings.emailFromName,
+                placeholder: systemEmail.name,
+                errors: settings.getErrors('emailFromName'),
+                disabled: 'emailFromName' in overrides or readOnly,
+                warning: overridden(overrides, 'emailFromName'),
+            }) }}
+
+            {{ forms.textField({
+                label: 'From address'|t('small-change'),
+                instructions: systemEmail.email ? 'Blank sends from {email}, from Craft.'|t('small-change', { email: systemEmail.email }) : "Blank uses the address in Craft's email settings, which is empty."|t('small-change'),
+                id: 'emailFromAddress',
+                name: 'settings[emailFromAddress]',
+                type: 'email',
+                value: settings.emailFromAddress,
+                placeholder: systemEmail.email,
+                errors: settings.getErrors('emailFromAddress'),
+                disabled: 'emailFromAddress' in overrides or readOnly,
+                warning: overridden(overrides, 'emailFromAddress'),
+            }) }}
+
+            {{ forms.textField({
+                label: 'Reply-to address'|t('small-change'),
+                instructions: systemEmail.replyTo ? 'Blank uses {email}, from Craft.'|t('small-change', { email: systemEmail.replyTo }) : "Blank means replies go to the From address, as Craft's settings have no reply-to address."|t('small-change'),
+                id: 'emailReplyTo',
+                name: 'settings[emailReplyTo]',
+                type: 'email',
+                value: settings.emailReplyTo,
+                placeholder: systemEmail.replyTo,
+                errors: settings.getErrors('emailReplyTo'),
+                disabled: 'emailReplyTo' in overrides or readOnly,
+                warning: overridden(overrides, 'emailReplyTo'),
+            }) }}
+
+            {{ forms.textField({
+                label: 'Admin notification address'|t('small-change'),
+                instructions: 'Where the staff emails in the table below are sent. Leave blank and none of them are sent.'|t('small-change'),
+                id: 'adminEmail',
+                name: 'settings[adminEmail]',
+                type: 'email',
+                value: settings.adminEmail,
+                errors: settings.getErrors('adminEmail'),
+                disabled: 'adminEmail' in overrides or readOnly,
+                warning: overridden(overrides, 'adminEmail'),
+            }) }}
+
+            <hr>
+            <h2>{{ 'What is sent'|t('small-change') }}</h2>
+            <p class="light">{{ "Every email Small Change sends, who gets it and when. Switch off the ones you do not want, for example the receipt if you use Stripe's own, and open one to change its wording or preview it."|t('small-change') }}</p>
+
+            <table class="data fullwidth">
+                <thead>
+                    <tr>
+                        <th>{{ 'Email'|t('small-change') }}</th>
+                        <th>{{ 'Sent to'|t('small-change') }}</th>
+                        <th>{{ 'When'|t('small-change') }}</th>
+                        <th>{{ 'Send'|t('small-change') }}</th>
+                        <th><span class="visually-hidden">{{ 'Actions'|t('small-change') }}</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, email in emailDefinitions %}
+                        <tr>
+                            <th scope="row" id="email-label-{{ key }}"><a href="{{ url('small-change/settings/emails/' ~ key) }}">{{ email.label }}</a><br><code class="light smalltext">{{ email.template }}</code></th>
+                            <td>
+                                {% if email.to == 'admin' %}
+                                    {% if settings.adminEmail %}{{ settings.adminEmail }}{% else %}<span class="light">{{ 'No admin address set, so this is not sent'|t('small-change') }}</span>{% endif %}
+                                {% else %}
+                                    {{ 'The donor'|t('small-change') }}
+                                {% endif %}
+                            </td>
+                            <td>{{ email.when }}</td>
+                            <td>
+                                {{ forms.lightswitch({
+                                    id: 'email-' ~ key,
+                                    name: 'settings[emails][' ~ key ~ ']',
+                                    on: key not in settings.disabledEmails,
+                                    small: true,
+                                    labelId: 'email-label-' ~ key,
+                                    disabled: 'disabledEmails' in overrides or readOnly,
+                                }) }}
+                            </td>
+                            <td class="nowrap">
+                                <a href="{{ url('small-change/settings/emails/' ~ key) }}">{{ (readOnly ? 'View' : 'Edit')|t('small-change') }}</a>
+                                · <a href="{{ url('small-change/settings/emails/' ~ key ~ '/preview') }}" target="_blank" rel="noopener">{{ 'Preview'|t('small-change') }}</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if 'disabledEmails' in overrides %}<p class="warning with-icon">{{ overridden(overrides, 'disabledEmails') }}</p>{% endif %}
+
+            <hr>
+            <h2>{{ 'Templates'|t('small-change') }}</h2>
+
+            {{ forms.textField({
+                label: 'Email template path'|t('small-change'),
+                instructions: 'Site templates folder holding your email overrides. Missing templates fall back to the built-in ones.'|t('small-change'),
+                id: 'emailTemplatePath',
+                name: 'settings[emailTemplatePath]',
+                value: settings.emailTemplatePath,
+                errors: settings.getErrors('emailTemplatePath'),
+                disabled: 'emailTemplatePath' in overrides or readOnly,
+                warning: overridden(overrides, 'emailTemplatePath'),
+            }) }}
+        </div>
+    </div>
+
+    <div id="giftaid"{% if selectedTab != 'giftaid' %} class="hidden"{% endif %}>
+        {{ forms.lightswitchField({
+            label: 'Offer Gift Aid on donations'|t('small-change'),
+            instructions: 'Adds a tick box to donation forms. Small Change passes the answer on; it does not keep declarations or make HMRC claims.'|t('small-change'),
+            id: 'giftAidEnabled',
+            name: 'settings[giftAidEnabled]',
+            on: settings.giftAidEnabled,
+            errors: settings.getErrors('giftAidEnabled'),
+            disabled: 'giftAidEnabled' in overrides or readOnly,
+            warning: overridden(overrides, 'giftAidEnabled'),
+        }) }}
+
+        {{ forms.selectField({
+            label: 'Declaration covers'|t('small-change'),
+            instructions: 'Which donations the donor is declaring. On a recurring donation, the declaration covers each of its payments.'|t('small-change'),
+            id: 'giftAidScope',
+            name: 'settings[giftAidScope]',
+            value: settings.getEffectiveGiftAidScope(),
+            options: [
+                { value: 'single', label: 'This donation only'|t('small-change') },
+                { value: 'future', label: 'This donation and future ones'|t('small-change') },
+                { value: 'pastAndFuture', label: 'This donation, future ones and those in the past 4 years (HMRC model)'|t('small-change') },
+                { value: 'custom', label: 'Custom wording'|t('small-change') },
+            ],
+            toggle: true,
+            targetPrefix: 'gift-aid-scope-',
+            errors: settings.getErrors('giftAidScope'),
+            disabled: 'giftAidScope' in overrides or readOnly,
+            warning: overridden(overrides, 'giftAidScope'),
+        }) }}
+
+        {% for scope in ['single', 'future', 'pastAndFuture'] %}
+            <div id="gift-aid-scope-{{ scope }}"{% if settings.getEffectiveGiftAidScope() != scope %} class="hidden"{% endif %}>
+                <div class="field">
+                    <div class="heading"><label>{{ 'Wording donors see'|t('small-change') }}</label></div>
+                    <blockquote class="light">{{ settings.renderGiftAidText(scope) }}</blockquote>
+                </div>
+            </div>
+        {% endfor %}
+
+        <div id="gift-aid-scope-custom"{% if settings.getEffectiveGiftAidScope() != 'custom' %} class="hidden"{% endif %}>
+            {{ forms.textareaField({
+                label: 'Declaration wording'|t('small-change'),
+                instructions: '{charityName} is replaced with the charity name on the General tab, or the site name if that is blank. If you write your own, it is up to you to keep it within HMRC rules.'|t('small-change'),
+                id: 'giftAidDeclarationText',
+                name: 'settings[giftAidDeclarationText]',
+                value: settings.giftAidDeclarationText,
+                rows: 6,
+                errors: settings.getErrors('giftAidDeclarationText'),
+                disabled: 'giftAidDeclarationText' in overrides or readOnly,
+                warning: overridden(overrides, 'giftAidDeclarationText'),
+            }) }}
+        </div>
+    </div>
+
+    <div id="privacy"{% if selectedTab != 'privacy' %} class="hidden"{% endif %}>
+        {{ forms.textField({
+            label: 'Delete abandoned carts after (days)'|t('small-change'),
+            id: 'purgeInactiveCartsDuration',
+            name: 'settings[purgeInactiveCartsDuration]',
+            type: 'number',
+            value: settings.purgeInactiveCartsDuration,
+            size: 5,
+            required: true,
+            errors: settings.getErrors('purgeInactiveCartsDuration'),
+            disabled: 'purgeInactiveCartsDuration' in overrides or readOnly,
+            warning: overridden(overrides, 'purgeInactiveCartsDuration'),
+        }) }}
+
+        {{ forms.textField({
+            label: 'Anonymise completed orders after (days)'|t('small-change'),
+            instructions: 'Leave blank to keep orders until you anonymise them yourself.'|t('small-change'),
+            id: 'anonymiseOrdersAfter',
+            name: 'settings[anonymiseOrdersAfter]',
+            type: 'number',
+            value: settings.anonymiseOrdersAfter,
+            size: 5,
+            errors: settings.getErrors('anonymiseOrdersAfter'),
+            disabled: 'anonymiseOrdersAfter' in overrides or readOnly,
+            warning: overridden(overrides, 'anonymiseOrdersAfter'),
+        }) }}
+
+        {{ forms.textField({
+            label: 'Keep the webhook log for (days)'|t('small-change'),
+            id: 'webhookLogRetention',
+            name: 'settings[webhookLogRetention]',
+            type: 'number',
+            value: settings.webhookLogRetention,
+            size: 5,
+            required: true,
+            errors: settings.getErrors('webhookLogRetention'),
+            disabled: 'webhookLogRetention' in overrides or readOnly,
+            warning: overridden(overrides, 'webhookLogRetention'),
+        }) }}
+    </div>
+{% endblock %}
+
+{# Saving redirects to the bare settings page, so remember the tab in use and return to it. #}
+{% js on ready %}
+    (function () {
+        var manager = window.Craft && Craft.cp && Craft.cp.tabManager;
+        var key = 'small-change-settings-tab';
+
+        if (!manager) {
+            return;
+        }
+
+        manager.on('selectTab', function (ev) {
+            try {
+                sessionStorage.setItem(key, ev.$tab.attr('href'));
+            } catch (e) {}
+        });
+
+        {% if restoreTab %}
+        if (window.location.hash) {
+            return;
+        }
+
+        var saved = null;
+
+        try {
+            saved = sessionStorage.getItem(key);
+        } catch (e) {}
+
+        var $tab = saved ? manager.$tabs.filter(function () {
+            return this.getAttribute('href') === saved;
+        }) : [];
+
+        if ($tab.length) {
+            manager.selectTab($tab.first(), false);
+        }
+        {% endif %}
+    })();
+{% endjs %}

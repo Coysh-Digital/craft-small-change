@@ -1,0 +1,18 @@
+{# A plain page to start from. The installer only adds it when you don't give it a layout of your own.
+   Whatever layout you use must output head(), beginBody() and endBody(). The payment scripts go in through endBody(). #}
+<!DOCTYPE html>
+<html lang="{{ currentSite.language }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title ?? siteName }} · {{ siteName }}</title>
+    {{ head() }}
+</head>
+<body>
+    {{ beginBody() }}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+    {{ endBody() }}
+</body>
+</html>

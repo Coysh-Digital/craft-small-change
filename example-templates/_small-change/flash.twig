@@ -1,0 +1,5 @@
+{# Shows the error and notice messages set by Small Change's actions. On a statically cached page include this through _small-change/dynamic, so one visitor's message is never baked into the page everyone else gets. #}
+{% set error = craft.app.session.getFlash('error') %}
+{% set notice = craft.app.session.getFlash('notice') %}
+{% if error %}<p role="alert">{{ error }}</p>{% endif %}
+{% if notice %}<p role="status">{{ notice }}</p>{% endif %}

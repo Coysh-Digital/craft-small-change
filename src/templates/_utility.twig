@@ -1,0 +1,65 @@
+{% include 'small-change/_status' %}
+
+<h2>{{ 'Webhook endpoint'|t('small-change') }}</h2>
+{% include 'small-change/_webhook' %}
+
+{% if currentUser.admin %}
+    <div class="flex">
+        <form method="post" accept-charset="UTF-8" onsubmit="return confirm('{{ 'Create a webhook endpoint at Stripe for this site? Its signing secret is shown once, and you will need to put it in your environment.'|t('small-change')|e('js') }}')">
+            {{ csrfInput() }}
+            {{ redirectInput('utilities/small-change-stripe') }}
+            <button type="submit" class="btn" name="action" value="small-change/stripe/register-webhook">{{ 'Register webhook endpoint with Stripe'|t('small-change') }}</button>
+        </form>
+        <form method="post" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ redirectInput('utilities/small-change-stripe') }}
+            <button type="submit" class="btn" name="action" value="small-change/stripe/sync-products">{{ 'Sync products to Stripe'|t('small-change') }}</button>
+            <button type="submit" class="btn" name="action" value="small-change/stripe/reconcile-subscriptions">{{ 'Check recurring donations'|t('small-change') }}</button>
+            <button type="submit" class="btn" name="action" value="small-change/stripe/replay-events">{{ 'Process missed events (last 3 days)'|t('small-change') }}</button>
+        </form>
+    </div>
+{% else %}
+    <p class="light">{{ 'Registering the endpoint, syncing products and replaying events are for admins.'|t('small-change') }}</p>
+{% endif %}
+
+{% if hasTestData and currentUser.admin %}
+    <h2>{{ 'Test data'|t('small-change') }}</h2>
+    <p>{{ 'This site is using live keys but still holds orders, donors and events from test mode. They are kept out of campaign totals, but you will want them gone before the first real gift.'|t('small-change') }}</p>
+    <form method="post" accept-charset="UTF-8" onsubmit="return confirm('{{ 'Delete everything made in Stripe test mode? This cannot be undone.'|t('small-change')|e('js') }}')">
+        {{ csrfInput() }}
+        {{ redirectInput('utilities/small-change-stripe') }}
+        <button type="submit" class="btn submit" name="action" value="small-change/stripe/delete-test-data">{{ 'Delete test data'|t('small-change') }}</button>
+    </form>
+{% endif %}
+
+<h2>{{ 'Recent events'|t('small-change') }}</h2>
+{% if events %}
+    <table class="data fullwidth">
+        <thead>
+            <tr>
+                <th>{{ 'Received'|t('small-change') }}</th>
+                <th>{{ 'Event'|t('small-change') }}</th>
+                <th>{{ 'Mode'|t('small-change') }}</th>
+                <th>{{ 'Result'|t('small-change') }}</th>
+                <th>{{ 'Tries'|t('small-change') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+                <tr>
+                    <td>{{ event.dateReceived|datetime('short') }}</td>
+                    <td><code>{{ event.type }}</code><br><span class="light smalltext">{{ event.stripeEventId }}</span></td>
+                    <td>{{ event.stripeMode }}</td>
+                    <td>
+                        <span class="status {{ event.status == 'processed' ? 'green' : (event.status == 'failed' ? 'red' : (event.status == 'ignored' ? 'disabled' : 'orange')) }}"></span>
+                        {{ event.status }}
+                        {% if event.error %}<br><span class="light smalltext">{{ event.error }}</span>{% endif %}
+                    </td>
+                    <td>{{ event.attempts }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p class="light">{{ 'No webhook events have arrived yet.'|t('small-change') }}</p>
+{% endif %}

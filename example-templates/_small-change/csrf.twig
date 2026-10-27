@@ -1,0 +1,6 @@
+{# A CSRF field that still works when the page is served from a static cache. With Blitz installed it is fetched as the page loads, because a token baked into a cached page belongs to someone else's session. Without Blitz it is Craft's usual field. #}
+{% if craft.app.plugins.isPluginEnabled('blitz') %}
+    {{ craft.blitz.csrfInput() }}
+{% else %}
+    {{ csrfInput() }}
+{% endif %}

@@ -1,0 +1,12 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'A refund failed' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Stripe couldn't complete a refund on order <strong>{{ order.number }}</strong>.</p>
+    {% endif %}
+    <p style="margin:0;">Amount: {{ craft.smallChange.formatMoney(context.amount|default(0), order.currency) }}</p>
+    {% if context.reason %}<p style="margin:0;">Stripe says: {{ context.reason }}</p>{% endif %}
+    <p>The money hasn't left your account, but you may need to refund the donor another way.</p>
+    <p><a href="{{ cpUrl('small-change/orders/' ~ order.id) }}">View the order</a></p>
+{% endblock %}

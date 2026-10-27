@@ -1,0 +1,51 @@
+{% extends 'small-change/_layout' %}
+{% set title = 'Shipping methods'|t('small-change') %}
+{% set selectedSubnavItem = 'shipping' %}
+{% set crumbs = [{ label: 'Small Change'|t('small-change'), url: url('small-change') }] %}
+
+{% block actionButton %}
+    <a class="btn submit add icon" href="{{ url('small-change/shipping/new') }}">{{ 'New shipping method'|t('small-change') }}</a>
+{% endblock %}
+
+{% block content %}
+    {% if methods %}
+        <p class="light">{{ 'Customers are offered the methods that serve their delivery country, in this order. If only one does, it is chosen for them.'|t('small-change') }}</p>
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Name'|t('small-change') }}</th>
+                    <th>{{ 'Price'|t('small-change') }}</th>
+                    <th>{{ 'Countries'|t('small-change') }}</th>
+                    <th>{{ 'Status'|t('small-change') }}</th>
+                    <th class="thin"></th>
+                    <th class="thin"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for method in methods %}
+                    <tr data-id="{{ method.id }}" data-name="{{ method.name|e }}">
+                        <th scope="row"><a href="{{ url('small-change/shipping/' ~ method.id) }}">{{ method.name }}</a></th>
+                        <td>{{ method.price ? craft.smallChange.formatMoney(method.price) : 'Free'|t('small-change') }}</td>
+                        <td>{{ method.countryCodes ? method.countryCodes|join(', ') : 'Everywhere'|t('small-change') }}</td>
+                        <td><span class="status {{ method.enabled ? 'green' : 'disabled' }}"></span>{{ method.enabled ? 'Enabled'|t('app') : 'Disabled'|t('app') }}</td>
+                        <td class="thin"><a class="move icon" title="{{ 'Reorder'|t('app') }}" role="button"></a></td>
+                        <td class="thin"><a class="delete icon" title="{{ 'Delete'|t('app') }}" role="button"></a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="zilch">{{ 'No shipping methods yet. Physical products cannot be bought until there is one.'|t('small-change') }}</p>
+    {% endif %}
+{% endblock %}
+
+{% js %}
+    new Craft.AdminTable({
+        tableSelector: '.data',
+        noObjectsSelector: '.zilch',
+        sortable: true,
+        reorderAction: 'small-change/shipping-methods/reorder',
+        deleteAction: 'small-change/shipping-methods/delete',
+        confirmDeleteMessage: {{ 'Are you sure you want to delete "{name}"? Orders that used it keep its name and price.'|t('small-change')|json_encode|raw }},
+    });
+{% endjs %}

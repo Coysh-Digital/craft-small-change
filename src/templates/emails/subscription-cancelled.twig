@@ -1,0 +1,9 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'Your recurring donation has ended' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Your {{ context.interval == 'year' ? 'yearly' : 'monthly' }} donation to {{ settings.charityName ?: siteName }} has been cancelled and nothing more will be taken.</p>
+    <p>Thank you for everything you've given.</p>
+    {% endif %}
+{% endblock %}

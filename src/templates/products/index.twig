@@ -1,0 +1,43 @@
+{% extends '_layouts/elementindex.twig' %}
+{% set title = 'Products'|t('small-change') %}
+{% set elementType = 'coyshdigital\\smallchange\\elements\\Product' %}
+{% set selectedSubnavItem = 'products' %}
+{% set crumbs = [{ label: 'Small Change'|t('small-change'), url: url('small-change') }] %}
+
+{% block actionButton %}
+    {% if productTypes %}
+        <div class="btngroup">
+            {% if productTypes|length == 1 %}
+                {% set type = productTypes|first %}
+                <form method="post" accept-charset="UTF-8">
+                    {{ csrfInput() }}
+                    {{ actionInput('elements/create') }}
+                    {{ hiddenInput('elementType', elementType) }}
+                    {{ hiddenInput('typeId', type.id) }}
+                    {{ hiddenInput('siteId', craft.app.sites.currentSite.id) }}
+                    <button type="submit" class="btn submit add icon">{{ 'New product'|t('small-change') }}</button>
+                </form>
+            {% else %}
+                <button type="button" class="btn submit add icon menubtn" data-menu>{{ 'New product'|t('small-change') }}</button>
+                <div class="menu">
+                    <ul>
+                        {% for type in productTypes %}
+                            <li>
+                                <form method="post" accept-charset="UTF-8">
+                                    {{ csrfInput() }}
+                                    {{ actionInput('elements/create') }}
+                                    {{ hiddenInput('elementType', elementType) }}
+                                    {{ hiddenInput('typeId', type.id) }}
+                                    {{ hiddenInput('siteId', craft.app.sites.currentSite.id) }}
+                                    <button type="submit" class="menu-option">{{ type.name }}</button>
+                                </form>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+    {% elseif currentUser.admin %}
+        <a class="btn submit add icon" href="{{ url('small-change/settings/product-types/new') }}">{{ 'Create a product type'|t('small-change') }}</a>
+    {% endif %}
+{% endblock %}

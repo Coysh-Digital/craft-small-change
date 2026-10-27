@@ -1,0 +1,42 @@
+{# The donation payment page at /donate/payment?number=… It only shows an order to the browser session that placed it, so the number in the address is no use on its own. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Payment' %}
+{% do craft.smallChange.registerScripts(true) %}
+
+{% block content %}
+    {% set order = craft.smallChange.recentOrder(craft.app.request.getQueryParam('number')) %}
+    {% set hosted = craft.smallChange.checkoutMode == 'hosted_page' %}
+    {% set clientSecret = order and order.state == 'pending' and not hosted ? craft.smallChange.checkoutClientSecret(order) : null %}
+    {% set hostedUrl = order and order.state == 'pending' and hosted ? craft.smallChange.checkoutUrl(order) : null %}
+
+    <h1>Payment</h1>
+
+    {# Where a donor lands after backing out of Stripe's page, with the reason in the flash. #}
+    {% set error = craft.app.session.getFlash('error') %}
+    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+
+    {% if not order %}
+        <p>We couldn't find that donation. If you were in the middle of giving, please <a href="/donate">start again</a>.</p>
+    {% elseif order.state == 'completed' %}
+        <p>This donation has already been paid. Thank you.</p>
+    {% elseif hostedUrl %}
+        {# Hosted checkout: payment happens on Stripe's page. This is where donors land if they back out of it. #}
+        <p>Your payment isn't complete yet.</p>
+        <p><a href="{{ hostedUrl }}">Continue to the secure payment page</a></p>
+    {% elseif not clientSecret %}
+        <p>This payment is no longer available. Please <a href="/donate">start again</a>.</p>
+    {% else %}
+        {% if craft.smallChange.isTestMode %}<p><strong>Test mode:</strong> use card 4242 4242 4242 4242, any future date and any CVC.</p>{% endif %}
+
+        <p>{{ order.lineItems|first.description }}: <strong>{{ craft.smallChange.formatMoney(order.total, order.currency) }}</strong></p>
+
+        <form id="payment-form"
+              data-publishable-key="{{ craft.smallChange.publishableKey }}"
+              data-client-secret="{{ clientSecret }}">
+            <div id="payment-element"></div>
+            <button type="submit" id="pay-button" disabled>Donate {{ craft.smallChange.formatMoney(order.total, order.currency) }}</button>
+            <p id="payment-message" role="alert" hidden></p>
+        </form>
+
+    {% endif %}
+{% endblock %}

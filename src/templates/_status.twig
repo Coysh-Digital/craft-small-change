@@ -1,0 +1,39 @@
+{# Key and mode status, shared by the overview and the utility. Never prints a key. #}
+{% set labels = {
+    set: 'Set'|t('small-change'),
+    missing: 'Missing'|t('small-change'),
+    invalid: 'Invalid'|t('small-change'),
+} %}
+
+<table class="data fullwidth">
+    <tbody>
+        <tr>
+            <th scope="row">{{ 'Mode'|t('small-change') }}</th>
+            <td>
+                {% if status.mode == 'live' %}
+                    <span class="status-label green"><span class="status green"></span>{{ 'Live'|t('small-change') }}</span>
+                {% elseif status.mode == 'test' %}
+                    <span class="status-label orange"><span class="status orange"></span>{{ 'Test'|t('small-change') }}</span>
+                {% else %}
+                    <span class="status-label"><span class="status disabled"></span>{{ 'Not configured'|t('small-change') }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">{{ 'Secret key'|t('small-change') }}</th>
+            <td>{{ labels[status.secretKey] }}</td>
+        </tr>
+        <tr>
+            <th scope="row">{{ 'Publishable key'|t('small-change') }}</th>
+            <td>{{ labels[status.publishableKey] }}</td>
+        </tr>
+        <tr>
+            <th scope="row">{{ 'Webhook signing secret'|t('small-change') }}</th>
+            <td>{{ labels[status.webhookSecret] }}</td>
+        </tr>
+    </tbody>
+</table>
+
+{% for problem in status.problems %}
+    <p class="error with-icon">{{ problem|t('small-change') }}</p>
+{% endfor %}

@@ -1,0 +1,143 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set readOnly = readOnly ?? false %}
+{% set fullPageForm = not readOnly %}
+{% set selectedSubnavItem = 'productTypes' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Product types'|t('small-change'), url: url('small-change/settings/product-types') },
+] %}
+
+{% set formActions = [
+    {
+        label: 'Save and continue editing'|t('app'),
+        redirect: 'small-change/settings/product-types/{id}'|hash,
+        shortcut: true,
+        retainScroll: true,
+    },
+] %}
+
+{% block content %}
+    {% if not readOnly %}
+        {{ actionInput('small-change/product-types/save') }}
+        {{ redirectInput('small-change/settings/product-types') }}
+        {% if productType.id %}{{ hiddenInput('productTypeId', productType.id) }}{% endif %}
+    {% endif %}
+
+    {{ forms.textField({
+        first: true,
+        label: 'Name'|t('app'),
+        instructions: 'What this product type is called in the control panel.'|t('small-change'),
+        id: 'name',
+        name: 'name',
+        value: productType.name,
+        errors: productType.getErrors('name'),
+        autofocus: true,
+        required: true,
+        disabled: readOnly,
+    }) }}
+
+    {{ forms.textField({
+        label: 'Handle'|t('app'),
+        instructions: 'The name you use to refer to this product type in templates.'|t('small-change'),
+        id: 'handle',
+        name: 'handle',
+        class: 'code',
+        autocorrect: false,
+        autocapitalize: false,
+        value: productType.handle,
+        errors: productType.getErrors('handle'),
+        required: true,
+        disabled: readOnly,
+    }) }}
+
+    {{ forms.selectField({
+        label: 'Kind'|t('small-change'),
+        instructions: 'Donations take an amount chosen by the donor. Physical products are delivered and need a delivery address. This cannot be changed once the type is created.'|t('small-change'),
+        id: 'kind',
+        name: 'kind',
+        options: kindOptions,
+        value: productType.kind,
+        errors: productType.getErrors('kind'),
+        disabled: readOnly or productType.id,
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'SKU required'|t('small-change'),
+        instructions: 'Products of this type can only be enabled once they have a SKU.'|t('small-change'),
+        id: 'skuRequired',
+        name: 'skuRequired',
+        on: productType.skuRequired,
+        errors: productType.getErrors('skuRequired'),
+        disabled: readOnly,
+    }) }}
+
+    <hr>
+
+    {% set siteRows = [] %}
+    {% set siteErrors = productType.getErrors('siteSettings') %}
+
+    {% for site in craft.app.sites.getAllSites() %}
+        {% set siteSettings = productType.siteSettings[site.id] ?? null %}
+        {% if siteSettings %}
+            {% for attribute, errors in siteSettings.getErrors() %}
+                {% set siteErrors = siteErrors|merge(errors) %}
+            {% endfor %}
+        {% endif %}
+        {% set siteRows = siteRows|merge({
+            (site.handle): {
+                heading: site.name|t('site')|e,
+                uriFormat: {
+                    value: siteSettings.uriFormat ?? null,
+                    hasErrors: siteSettings.hasErrors('uriFormat') ?? false,
+                },
+                template: {
+                    value: siteSettings.template ?? null,
+                    hasErrors: siteSettings.hasErrors('template') ?? false,
+                },
+            },
+        }) %}
+    {% endfor %}
+
+    {{ forms.editableTableField({
+        label: 'Site settings'|t('small-change'),
+        instructions: 'Give products their own pages by adding a URI format and a template. Leave the format blank if products do not need a page.'|t('small-change'),
+        id: 'sites',
+        name: 'sites',
+        cols: {
+            heading: { type: 'heading', heading: 'Site'|t('app'), class: 'thin' },
+            uriFormat: {
+                type: 'singleline',
+                heading: 'Product URI format'|t('small-change'),
+                placeholder: 'Leave blank for no product URLs'|t('small-change'),
+                code: true,
+            },
+            template: {
+                type: 'template',
+                heading: 'Template'|t('app'),
+                info: 'The template that loads when someone visits a product URL.'|t('small-change'),
+                code: true,
+            },
+        },
+        rows: siteRows,
+        allowAdd: false,
+        allowDelete: false,
+        allowReorder: false,
+        errors: siteErrors|unique,
+        static: readOnly,
+    }) }}
+
+    <hr>
+
+    {{ forms.fieldLayoutDesignerField({
+        fieldLayout: productType.getFieldLayout(),
+        disabled: readOnly,
+    }) }}
+{% endblock %}
+
+{% if brandNew %}
+    {% js on ready %}
+        new Craft.HandleGenerator('#name', '#handle');
+    {% endjs %}
+{% endif %}

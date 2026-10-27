@@ -1,0 +1,11 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'Your bank needs you to confirm your donation' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Your bank has asked you to confirm your {{ context.interval == 'year' ? 'yearly' : 'monthly' }} donation of {{ craft.smallChange.formatMoney(context.amount|default(order.total), order.currency) }} to {{ settings.charityName ?: siteName }} before it can be taken.</p>
+    {% endif %}
+    {% if context.invoiceUrl %}
+        <p><a href="{{ context.invoiceUrl }}">Confirm your donation</a></p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+      - run: composer update --no-interaction --prefer-dist
+      - run: vendor/bin/ecs check --ansi
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+  test:
+    name: Test (PHP ${{ matrix.php }}, ${{ matrix.db }}, stripe-php ${{ matrix.stripe }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.4']
+        db: [mysql, pgsql]
+        stripe: [lowest, latest]
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=20
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      TEST_DB_DSN: ${{ matrix.db == 'mysql' && 'mysql:host=127.0.0.1;port=3306;dbname=test' || 'pgsql:host=127.0.0.1;port=5432;dbname=test' }}
+      TEST_DB_USER: ${{ matrix.db == 'mysql' && 'root' || 'postgres' }}
+      TEST_DB_PASSWORD: ${{ matrix.db == 'mysql' && 'root' || 'postgres' }}
+      TEST_DB_SCHEMA: ${{ matrix.db == 'pgsql' && 'public' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          extensions: intl, mbstring, pdo_mysql, pdo_pgsql, gd, bcmath
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.stripe }}" = "lowest" ]; then
+            composer update --no-interaction --prefer-dist --with "stripe/stripe-php:^15.0"
+          else
+            composer update --no-interaction --prefer-dist
+          fi
+      - run: vendor/bin/codecept build
+      - run: vendor/bin/codecept run --no-colors
+
+  # The oldest Craft and Stripe SDK the composer constraints allow. PHPStan catches any API
+  # newer than Craft 5.0.0 (see phpstan-floor.neon for what it has to leave out there); the unit
+  # suite can't run on it because Craft 5.0.0's test harness predates the current Codeception
+  # Yii2 module. Security blocking is off because 5.0.0 has published advisories, which would
+  # otherwise make Composer refuse it.
+  floor:
+    name: Floor (Craft 5.0.0, stripe-php 15)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          extensions: intl, mbstring, gd, bcmath
+      - run: composer update --no-interaction --prefer-dist --no-security-blocking --with "craftcms/cms:5.0.0" --with "stripe/stripe-php:^15.0"
+      - run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress -c phpstan-floor.neon

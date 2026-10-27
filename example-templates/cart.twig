@@ -1,0 +1,86 @@
+{# The basket at /cart. Every action returns here with a message in the flash. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Your basket' %}
+{% set cart = craft.smallChange.cart %}
+
+{% block content %}
+    <h1>Your basket</h1>
+
+    {% if craft.app.session.getFlash('error') %}<p role="alert">{{ craft.app.session.getFlash('error') }}</p>{% endif %}
+    {% if craft.app.session.getFlash('notice') %}<p role="status">{{ craft.app.session.getFlash('notice') }}</p>{% endif %}
+
+    {% if not cart or not cart.lineItems %}
+        <p>Your basket is empty. <a href="/shop">Browse the shop</a>.</p>
+    {% else %}
+        <form method="post" action="" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ actionInput('small-change/cart/update') }}
+            {{ redirectInput('cart') }}
+
+            <table>
+                <thead>
+                    <tr><th scope="col">Item</th><th scope="col">Price</th><th scope="col">Quantity</th><th scope="col">Total</th><th></th></tr>
+                </thead>
+                <tbody>
+                    {% for line in cart.lineItems %}
+                        <tr>
+                            <th scope="row">{{ line.description }}{% if line.kind == 'donation' %} <small>(donation)</small>{% endif %}</th>
+                            <td>{{ craft.smallChange.formatMoney(line.unitPrice, cart.currency) }}</td>
+                            <td>
+                                {% if line.kind == 'donation' %}
+                                    1
+                                {% else %}
+                                    <input type="number" name="quantities[{{ line.purchasableId }}]" value="{{ line.qty }}" min="0" max="999" aria-label="Quantity of {{ line.description }}">
+                                {% endif %}
+                            </td>
+                            <td>{{ craft.smallChange.formatMoney(line.subtotal, cart.currency) }}</td>
+                            <td><button type="submit" form="remove-{{ line.purchasableId }}">Remove</button></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr><th scope="row" colspan="3">Items</th><td>{{ craft.smallChange.formatMoney(cart.itemSubtotal, cart.currency) }}</td><td></td></tr>
+                    {% if cart.discountAmount %}
+                        <tr><th scope="row" colspan="3">Discount ({{ cart.discountCode }})</th><td>&minus;{{ craft.smallChange.formatMoney(cart.discountAmount, cart.currency) }}</td><td></td></tr>
+                    {% endif %}
+                    {% if cart.shippingAmount %}
+                        <tr><th scope="row" colspan="3">Delivery ({{ cart.shippingMethodName }})</th><td>{{ craft.smallChange.formatMoney(cart.shippingAmount, cart.currency) }}</td><td></td></tr>
+                    {% endif %}
+                    <tr><th scope="row" colspan="3">Total</th><td><strong>{{ craft.smallChange.formatMoney(cart.total, cart.currency) }}</strong></td><td></td></tr>
+                </tfoot>
+            </table>
+
+            {% if cart.requiresShipping and not cart.shippingAmount %}
+                <p><small>Delivery is added once you choose a method at checkout.</small></p>
+            {% endif %}
+
+            <button type="submit">Update basket</button>
+        </form>
+
+        {# Remove buttons live outside the form above because forms cannot be nested. #}
+        {% for line in cart.lineItems %}
+            <form id="remove-{{ line.purchasableId }}" method="post" action="" accept-charset="UTF-8" hidden>
+                {{ csrfInput() }}
+                {{ actionInput('small-change/cart/remove') }}
+                {{ redirectInput('cart') }}
+                {{ hiddenInput('productId', line.purchasableId) }}
+            </form>
+        {% endfor %}
+
+        <form method="post" action="" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {% if cart.discountCode %}
+                {{ actionInput('small-change/cart/remove-discount') }}
+                {{ redirectInput('cart') }}
+                <p>Code <strong>{{ cart.discountCode }}</strong> applied. <button type="submit">Remove</button></p>
+            {% else %}
+                {{ actionInput('small-change/cart/apply-discount') }}
+                {{ redirectInput('cart') }}
+                <label>Discount code <input type="text" name="discountCode" autocomplete="off"></label>
+                <button type="submit">Apply</button>
+            {% endif %}
+        </form>
+
+        <p><a href="/checkout">Go to checkout</a></p>
+    {% endif %}
+{% endblock %}

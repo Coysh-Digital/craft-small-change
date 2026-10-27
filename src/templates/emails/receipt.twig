@@ -1,0 +1,23 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: (order.hasDonation ? 'Thank you for your gift' : 'Thank you for your order') }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>This is your receipt from {{ settings.charityName ?: siteName }}.</p>
+    {% endif %}
+
+    <p style="margin:0;">Reference: <strong>{{ order.number }}</strong></p>
+    <p style="margin:0;">Date: {{ (payment.paidAt ?? order.dateCompleted ?? now)|date('j F Y') }}</p>
+
+    {% include 'small-change/emails/_summary' %}
+
+    {% if giftAid.declared %}
+        <p><strong>Gift Aid:</strong> you have asked us to claim Gift Aid on {{ craft.smallChange.formatMoney(giftAid.amount, order.currency) }} of this gift.
+        {% if billingAddress %}We have your name and home address as {{ billingAddress.firstName }} {{ billingAddress.lastName }}, {{ billingAddress.addressLine1 }}, {{ billingAddress.postalCode }}.{% endif %}</p>
+        <p style="font-size:13px;color:#555;">{{ giftAid.text }}</p>
+    {% elseif giftAid.declared is same as(false) %}
+        <p style="font-size:13px;color:#555;">You chose not to Gift Aid this donation.</p>
+    {% endif %}
+
+    <p style="font-size:13px;color:#555;">Keep this email as your record of the payment.</p>
+{% endblock %}

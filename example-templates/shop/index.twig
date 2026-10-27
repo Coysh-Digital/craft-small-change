@@ -1,0 +1,25 @@
+{# The shop at /shop: a product list with an add-to-basket form on each. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Shop' %}
+{% set products = craft.smallChange.products({ kind: ['physical', 'nonPhysical'], status: 'enabled' }).all() %}
+
+{% block content %}
+    <h1>Shop</h1>
+
+    {# The messages and the basket link are personal to each visitor, so they are included dynamically. That keeps this page cacheable (see docs/caching.md). #}
+    {% include '_small-change/dynamic' with { template: '_small-change/flash' } only %}
+
+    <p>{% include '_small-change/dynamic' with { template: '_small-change/basket-link' } only %}</p>
+
+    <ul>
+        {% for product in products %}
+            <li>
+                <h2>{% if product.url %}<a href="{{ product.url }}">{{ product.title }}</a>{% else %}{{ product.title }}{% endif %}</h2>
+                <p>{{ craft.smallChange.formatMoney(product.price) }}</p>
+                {% include 'shop/_add-form' with { product: product } only %}
+            </li>
+        {% else %}
+            <li>There's nothing in the shop right now.</li>
+        {% endfor %}
+    </ul>
+{% endblock %}

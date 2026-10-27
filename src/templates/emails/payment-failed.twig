@@ -1,0 +1,9 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: "We couldn't take your payment this time" }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Your payment for {{ order.hasDonation ? 'your donation' : 'your order' }} ({{ order.number }}) to {{ settings.charityName ?: siteName }} didn't go through, and you haven't been charged.</p>
+    <p>Please try again from our website. If it keeps happening, your bank may have declined it, so it's worth checking with them.</p>
+    {% endif %}
+{% endblock %}

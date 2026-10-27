@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <!-- Ids are prefixed: the Plugin Store lists many icons on one page. -->
+    <linearGradient id="scBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14B8A6"/>
+      <stop offset="1" stop-color="#0F766E"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="100" height="100" rx="24" fill="url(#scBg)"/>
+  <!-- A coin with a heart cut out: small change, given freely. -->
+  <circle cx="50" cy="50" r="30" fill="#ffffff"/>
+  <path d="M50 66C32 54 34 38 44 38C47.5 38 49.2 40 50 42C50.8 40 52.5 38 56 38C66 38 68 54 50 66Z" fill="#0F766E"/>
+</svg>

@@ -1,0 +1,127 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = email.label %}
+{% set selectedSubnavItem = 'settings' %}
+{% set fullPageForm = not readOnly %}
+
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Settings'|t('small-change'), url: url('small-change/settings') },
+    { label: 'Emails'|t('small-change'), url: url('small-change/settings/emails') },
+] %}
+
+{% set formActions = [
+    {
+        label: 'Save and continue editing'|t('app'),
+        redirect: ('small-change/settings/emails/' ~ key)|hash,
+        shortcut: true,
+        retainScroll: true,
+    },
+] %}
+
+{% set tokenList %}{% for token in tokens %}<code>{{ token }}</code>{{ not loop.last ? ', ' }}{% endfor %}{% endset %}
+
+{% block content %}
+    {% if not readOnly %}
+        {{ actionInput('small-change/settings/save-email') }}
+        {{ redirectInput('small-change/settings/emails') }}
+    {% endif %}
+    {{ hiddenInput('key', key) }}
+
+    <p>
+        {{ email.when }}
+        {{ email.to == 'admin'
+            ? (adminEmail ? 'Sent to {email}.'|t('small-change', { email: adminEmail }) : 'No admin address is set, so this is not sent.'|t('small-change'))
+            : 'Sent to the donor.'|t('small-change') }}
+        {% if not enabled %}<strong>{{ 'This email is switched off.'|t('small-change') }}</strong>{% endif %}
+    </p>
+
+    {% if overridden %}
+        <p class="warning with-icon">{{ 'Email wording is set in config/small-change.php.'|t('small-change') }}</p>
+    {% endif %}
+
+    {% if overrideTemplate %}
+        <p class="warning with-icon">{{ 'Your site template {template} is used for this email instead of the built-in one. It only shows the heading and message below if it prints content.heading and content.message.'|t('small-change', { template: overrideTemplate }) }}</p>
+    {% endif %}
+
+    {{ forms.textField({
+        first: true,
+        label: 'Subject'|t('small-change'),
+        id: 'subject',
+        name: 'content[subject]',
+        value: content.subject,
+        placeholder: 'Leave blank for the built-in subject'|t('small-change'),
+        maxlength: 255,
+        disabled: readOnly,
+    }) }}
+
+    {{ forms.textField({
+        label: 'Heading'|t('small-change'),
+        id: 'heading',
+        name: 'content[heading]',
+        value: content.heading,
+        placeholder: 'Leave blank for the built-in heading'|t('small-change'),
+        maxlength: 255,
+        disabled: readOnly,
+    }) }}
+
+    {{ forms.textareaField({
+        label: 'Message'|t('small-change'),
+        instructions: 'Replaces the opening paragraphs. The details that matter, such as the order summary, Gift Aid declaration and links, are always included. Leave a blank line between paragraphs.'|t('small-change'),
+        id: 'message',
+        name: 'content[message]',
+        value: content.message,
+        placeholder: 'Leave blank for the built-in message'|t('small-change'),
+        rows: 6,
+        maxlength: 5000,
+        disabled: readOnly,
+    }) }}
+
+    <p class="light">{{ 'You can use {tokens} in all three.'|t('small-change', { tokens: tokenList })|raw }}</p>
+
+    <hr>
+
+    <h2>{{ 'Preview'|t('small-change') }}</h2>
+    <p class="light">
+        {% if preview.order %}
+            {{ 'Shown with the details of order {number}. Nothing is sent.'|t('small-change', { number: preview.order.number }) }}
+        {% else %}
+            {{ 'Shown with made-up details. Nothing is sent.'|t('small-change') }}
+        {% endif %}
+    </p>
+    <p><strong>{{ 'Subject'|t('small-change') }}:</strong> <span id="sc-preview-subject">{{ preview.subject }}</span></p>
+    <iframe id="sc-preview" title="{{ 'Email preview'|t('small-change') }}" sandbox="allow-popups" srcdoc="{{ preview.html }}" style="width:100%;height:640px;border:1px solid var(--hairline-color, #ddd);border-radius:4px;background:#f5f5f5;"></iframe>
+{% endblock %}
+
+{# Re-renders the preview from the fields as they are typed, without saving. #}
+{% js on ready %}
+    (function () {
+        var timer = null;
+        var fields = ['subject', 'heading', 'message'].map(function (id) {
+            return document.getElementById(id);
+        });
+
+        function refresh() {
+            var content = {};
+
+            fields.forEach(function (field) {
+                content[field.id] = field.value;
+            });
+
+            Craft.sendActionRequest('POST', 'small-change/settings/preview-email', {
+                data: { key: {{ key|json_encode|raw }}, content: content },
+            }).then(function (response) {
+                document.getElementById('sc-preview').srcdoc = response.data.html;
+                document.getElementById('sc-preview-subject').textContent = response.data.subject;
+            }).catch(function () {});
+        }
+
+        fields.forEach(function (field) {
+            field.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(refresh, 400);
+            });
+        });
+    })();
+{% endjs %}

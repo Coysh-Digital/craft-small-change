@@ -1,0 +1,40 @@
+{% extends 'small-change/_layout' %}
+
+{% set title = 'Overview'|t('small-change') %}
+{% set selectedSubnavItem = 'overview' %}
+
+{% css %}
+    .sc-step-hint {
+        margin: 2px 0 var(--s) 26px;
+        max-width: 60ch;
+    }
+{% endcss %}
+
+{% block content %}
+    {% if gettingStarted %}
+        <h2>{{ 'Getting started'|t('small-change') }}</h2>
+        <ul class="bullets-none">
+            {% for step in gettingStarted %}
+                <li>
+                    <span class="status {{ step.done ? 'green' : 'disabled' }}"></span>
+                    {% if step.done %}
+                        {{ step.label }}
+                    {% else %}
+                        <a href="{{ url(step.url) }}">{{ step.label }}</a>
+                        {% if step.hint ?? null %}<p class="light sc-step-hint">{{ step.hint }}</p>{% endif %}
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <h2>{{ 'Stripe'|t('small-change') }}</h2>
+    {% include 'small-change/_status' with { status: stripeStatus } only %}
+
+    {% if currentUser.admin %}
+        <p>
+            <a class="btn" href="{{ url('small-change/settings') }}">{{ 'Settings'|t('small-change') }}</a>
+            <a class="btn" href="{{ url('small-change/settings/product-types') }}">{{ 'Product types'|t('small-change') }}</a>
+        </p>
+    {% endif %}
+{% endblock %}

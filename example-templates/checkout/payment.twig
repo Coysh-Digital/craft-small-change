@@ -1,0 +1,49 @@
+{# The checkout payment page at /checkout/payment?number=… It only shows an order to the browser session that placed it, so the number in the address is no use on its own. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Payment' %}
+{% do craft.smallChange.registerScripts(true) %}
+
+{% block content %}
+    {% set order = craft.smallChange.recentOrder(craft.app.request.getQueryParam('number')) %}
+    {% set hosted = craft.smallChange.checkoutMode == 'hosted_page' %}
+    {% set clientSecret = order and order.state == 'pending' and not hosted ? craft.smallChange.checkoutClientSecret(order) : null %}
+    {% set hostedUrl = order and order.state == 'pending' and hosted ? craft.smallChange.checkoutUrl(order) : null %}
+
+    <h1>Payment</h1>
+
+    {% if craft.app.session.getFlash('error') %}<p role="alert">{{ craft.app.session.getFlash('error') }}</p>{% endif %}
+
+    {% if not order %}
+        <p>We couldn't find that order. <a href="/cart">Back to your basket</a>.</p>
+    {% elseif order.state == 'completed' %}
+        <p>This order has already been paid. Thank you.</p>
+    {% elseif hostedUrl %}
+        {# Hosted checkout: payment happens on Stripe's page. This is where people land if they back out of it. #}
+        <p>Your payment isn't complete yet.</p>
+        <p><a href="{{ hostedUrl }}">Continue to the secure payment page</a></p>
+    {% elseif not clientSecret %}
+        <p>This payment is no longer available. <a href="/cart">Back to your basket</a>.</p>
+    {% else %}
+        {% if craft.smallChange.isTestMode %}<p><strong>Test mode:</strong> use card 4242 4242 4242 4242, any future date and any CVC.</p>{% endif %}
+
+        <ul>
+            {% for line in order.lineItems %}
+                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}: {{ craft.smallChange.formatMoney(line.subtotal, order.currency) }}</li>
+            {% endfor %}
+            {% if order.discountAmount %}<li>Discount ({{ order.discountCode }}): &minus;{{ craft.smallChange.formatMoney(order.discountAmount, order.currency) }}</li>{% endif %}
+            {% if order.shippingAmount %}<li>Delivery ({{ order.shippingMethodName }}): {{ craft.smallChange.formatMoney(order.shippingAmount, order.currency) }}</li>{% endif %}
+        </ul>
+        <p>Total <strong>{{ craft.smallChange.formatMoney(order.total, order.currency) }}</strong></p>
+
+        <form id="payment-form"
+              data-publishable-key="{{ craft.smallChange.publishableKey }}"
+              data-client-secret="{{ clientSecret }}">
+            <div id="payment-element"></div>
+            <button type="submit" id="pay-button" disabled>Pay {{ craft.smallChange.formatMoney(order.total, order.currency) }}</button>
+            <p id="payment-message" role="alert" hidden></p>
+        </form>
+
+        <p><a href="/cart">Change your basket</a></p>
+
+    {% endif %}
+{% endblock %}

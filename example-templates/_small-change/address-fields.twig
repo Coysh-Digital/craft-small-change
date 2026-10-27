@@ -1,0 +1,35 @@
+{# Address inputs for a form field called `prefix`, such as shippingAddress.
+   Pass `address` (an Address element or null) to fill them in, and `order` to show errors. #}
+{% set address = address ?? null %}
+{% set order = order ?? null %}
+{% set prefix = prefix ?? 'shippingAddress' %}
+
+{% macro row(prefix, attribute, label, value, autocomplete, order, required) %}
+    <p>
+        <label>
+            {{ label }}
+            <input type="text" name="{{ prefix }}[{{ attribute }}]" value="{{ value }}" autocomplete="{{ autocomplete }}"{% if required %} required{% endif %}{% if order and order.hasErrors(prefix ~ '.' ~ attribute) %} aria-invalid="true"{% endif %}>
+        </label>
+        {% if order and order.hasErrors(prefix ~ '.' ~ attribute) %}<span role="alert">{{ order.getFirstError(prefix ~ '.' ~ attribute) }}</span>{% endif %}
+    </p>
+{% endmacro %}
+
+{% from _self import row %}
+
+{{ row(prefix, 'firstName', 'First name', address.firstName ?? '', 'given-name', order, true) }}
+{{ row(prefix, 'lastName', 'Last name', address.lastName ?? '', 'family-name', order, true) }}
+{{ row(prefix, 'addressLine1', 'Address', address.addressLine1 ?? '', 'address-line1', order, true) }}
+{{ row(prefix, 'addressLine2', 'Address line 2', address.addressLine2 ?? '', 'address-line2', order, false) }}
+{{ row(prefix, 'locality', 'Town or city', address.locality ?? '', 'address-level2', order, true) }}
+{{ row(prefix, 'postalCode', 'Postcode', address.postalCode ?? '', 'postal-code', order, true) }}
+
+<p>
+    <label>
+        Country
+        <select name="{{ prefix }}[countryCode]" autocomplete="country">
+            {% for code, name in craft.app.addresses.countryList %}
+                <option value="{{ code }}"{% if code == (address.countryCode ?? 'GB') %} selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+</p>

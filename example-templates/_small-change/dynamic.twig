@@ -1,0 +1,7 @@
+{# Includes a template in a way that stays fresh on a statically cached page. Pass `template`, and optionally `params`. With Blitz installed it is fetched when the page loads, so params can only be strings, numbers, booleans and arrays (no elements: pass an ID and look it up inside). Without Blitz it is a plain include. #}
+{% set params = params ?? {} %}
+{% if craft.app.plugins.isPluginEnabled('blitz') %}
+    {{ craft.blitz.includeDynamic(template, params) }}
+{% else %}
+    {% include template with params only %}
+{% endif %}

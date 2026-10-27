@@ -1,0 +1,49 @@
+{% extends 'small-change/_layout' %}
+{% set title = 'Recurring donations'|t('small-change') %}
+{% set selectedSubnavItem = 'subscriptions' %}
+{% set crumbs = [{ label: 'Small Change'|t('small-change'), url: url('small-change') }] %}
+{% set fmt = craft.smallChange %}
+
+{% block content %}
+    <form method="get" accept-charset="UTF-8">
+        <label for="status" class="light">{{ 'Show'|t('small-change') }}</label>
+        <select id="status" name="status" onchange="this.form.submit()">
+            <option value="">{{ 'All'|t('small-change') }}</option>
+            {% for value in ['active', 'past_due', 'unpaid', 'paused', 'canceled', 'incomplete'] %}
+                <option value="{{ value }}"{{ status == value ? ' selected' }}>{{ value|replace({'_': ' '}) }}</option>
+            {% endfor %}
+        </select>
+        <noscript><button type="submit" class="btn small">{{ 'Filter'|t('small-change') }}</button></noscript>
+    </form>
+
+    {% if subscriptions %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Donor'|t('small-change') }}</th>
+                    <th>{{ 'Amount'|t('small-change') }}</th>
+                    <th>{{ 'Status'|t('small-change') }}</th>
+                    <th>{{ 'Next payment'|t('small-change') }}</th>
+                    <th>{{ 'Started'|t('small-change') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscription in subscriptions %}
+                    {% set order = orders[subscription.orderId] ?? null %}
+                    <tr>
+                        <th scope="row"><a href="{{ url('small-change/subscriptions/' ~ subscription.id) }}">{{ order ? (order.email ?: order.number) : subscription.stripeSubscriptionId }}</a></th>
+                        <td>{{ fmt.formatMoney(subscription.amount, subscription.currency) }} / {{ subscription.interval }}</td>
+                        <td>
+                            <span class="status {{ subscription.status == 'active' ? 'green' : (subscription.status in ['past_due', 'unpaid'] ? 'red' : 'disabled') }}"></span>
+                            {{ subscription.status|replace({'_': ' '}) }}{% if subscription.cancelAtPeriodEnd and subscription.isLive %} <span class="light">({{ 'ends at period end'|t('small-change') }})</span>{% endif %}
+                        </td>
+                        <td>{{ subscription.isLive and not subscription.cancelAtPeriodEnd and subscription.currentPeriodEnd ? subscription.currentPeriodEnd|date('short') : '-' }}</td>
+                        <td>{{ subscription.dateCreated ? subscription.dateCreated|date('short') : '-' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="zilch">{{ 'No recurring donations yet.'|t('small-change') }}</p>
+    {% endif %}
+{% endblock %}

@@ -1,0 +1,3 @@
+{# The "Basket (2)" link. It reads the visitor's basket, so on a statically cached page include it through _small-change/dynamic. #}
+{% set cart = craft.smallChange.cart %}
+<a href="/cart">Basket{% if cart and cart.lineItems %} ({{ cart.lineItems|length }}){% endif %}</a>

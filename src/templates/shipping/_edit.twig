@@ -1,0 +1,52 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set fullPageForm = true %}
+{% set selectedSubnavItem = 'shipping' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Shipping methods'|t('small-change'), url: url('small-change/shipping') },
+] %}
+
+{% block content %}
+    {{ actionInput('small-change/shipping-methods/save') }}
+    {{ redirectInput('small-change/shipping') }}
+    {% if method.id %}{{ hiddenInput('methodId', method.id) }}{% endif %}
+
+    {{ forms.textField({
+        first: true,
+        label: 'Name'|t('small-change'),
+        instructions: 'What the customer sees, for example "Royal Mail 2nd class".'|t('small-change'),
+        id: 'name', name: 'name', value: method.name, required: true, autofocus: true,
+        errors: method.getErrors('name'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Handle'|t('small-change'),
+        id: 'handle', name: 'handle', value: method.handle, required: true, class: 'code',
+        errors: method.getErrors('handle'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Price ({currency})'|t('small-change', { currency: currency }),
+        instructions: 'A flat rate per order. Enter 0 for free delivery.'|t('small-change'),
+        id: 'price', name: 'price', value: priceValue, size: 8, required: true,
+        errors: method.getErrors('price'),
+    }) }}
+
+    {{ forms.textField({
+        label: 'Countries'|t('small-change'),
+        instructions: 'Two-letter country codes separated by commas, for example GB, IE. Leave blank to deliver everywhere.'|t('small-change'),
+        id: 'countryCodes', name: 'countryCodes', value: countriesValue,
+        errors: method.getErrors('countryCodes'),
+    }) }}
+
+    {{ forms.lightswitchField({
+        label: 'Enabled'|t('small-change'),
+        id: 'enabled', name: 'enabled', on: method.enabled,
+    }) }}
+{% endblock %}
+
+{% js on ready %}
+    {% if not method.id %}new Craft.HandleGenerator('#name', '#handle');{% endif %}
+{% endjs %}

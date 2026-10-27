@@ -1,0 +1,123 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{% set title = 'Settings'|t('small-change') %}
+{% set selectedSubnavItem = 'settings' %}
+
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Settings'|t('small-change'), url: url('small-change/settings') },
+] %}
+
+{% block content %}
+    <p class="light">
+        {{ 'Copies ready-made pages into your templates folder, so you can open /donate or /shop straight away and then change them however you like. Files that already exist are never replaced unless you ask.'|t('small-change') }}
+        <a href="https://coysh.digital/plugins/small-change/docs/" target="_blank" rel="noopener">{{ 'Read how the templates fit together'|t('small-change') }}</a>
+    </p>
+
+    {% if result %}
+        <div class="readable">
+            <h2>{{ 'What was installed'|t('small-change') }}</h2>
+
+            {% for warning in result.warnings %}
+                <p class="warning with-icon">{{ warning }}</p>
+            {% endfor %}
+
+            {% if result.created or result.overwritten %}
+                <ul>
+                    {% for file in result.created %}<li><code>{{ file }}</code> <span class="light">{{ 'created'|t('small-change') }}</span></li>{% endfor %}
+                    {% for file in result.overwritten %}<li><code>{{ file }}</code> <span class="light">{{ 'replaced'|t('small-change') }}</span></li>{% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if result.skipped %}
+                <p class="light">{{ 'Left alone because they already exist:'|t('small-change') }}</p>
+                <ul>
+                    {% for file in result.skipped %}<li><code>{{ file }}</code></li>{% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if result.nextSteps %}
+                <h3>{{ 'Next'|t('small-change') }}</h3>
+                <ol>
+                    {% for step in result.nextSteps %}<li>{{ step }}</li>{% endfor %}
+                </ol>
+            {% endif %}
+        </div>
+        <hr>
+    {% endif %}
+
+    <form method="post" accept-charset="UTF-8" class="readable"
+          onsubmit="return !this.elements.overwrite.checked || confirm({{ 'Replace any of these files that already exist? Changes you have made to them will be lost.'|t('small-change')|json_encode }});">
+        {{ csrfInput() }}
+        {{ actionInput('small-change/templates/install') }}
+
+        <h2>{{ 'What do you want to offer?'|t('small-change') }}</h2>
+
+        {% for handle, set in sets %}
+            {% set status = statuses[handle] %}
+            {{ forms.checkboxField({
+                label: set.label,
+                name: 'sets[]',
+                id: 'set-' ~ handle,
+                value: handle,
+                checked: handle in values.sets,
+                instructions: set.description ~ ' ' ~ ('Pages: {urls}.'|t('small-change', { urls: set.urls|join(', ') })) ~ (status == 'installed' ? ' ' ~ 'Already installed.'|t('small-change') : (status == 'partial' ? ' ' ~ 'Partly installed.'|t('small-change') : '')),
+            }) }}
+        {% endfor %}
+
+        <h2>{{ 'Where should the pages sit?'|t('small-change') }}</h2>
+
+        {{ forms.radioGroupField({
+            label: 'Layout'|t('small-change'),
+            instructions: 'The pages are wrapped in a layout, like the rest of your site. Use your own so they match, or add a plain one to start from.'|t('small-change'),
+            name: 'layoutMode',
+            value: values.layoutMode,
+            options: [
+                { value: 'own', label: 'Use my own layout'|t('small-change') },
+                { value: 'simple', label: 'Add a plain layout for me (templates/_small-change/layout.twig)'|t('small-change') },
+            ],
+        }) }}
+
+        {{ forms.autosuggestField({
+            label: 'Your layout template'|t('small-change'),
+            instructions: 'The path to it inside your templates folder, such as _layouts/site. It must output head(), beginBody() and endBody().'|t('small-change'),
+            id: 'layout',
+            name: 'layout',
+            value: values.layout,
+            suggestTemplates: true,
+            placeholder: '_layouts/site',
+        }) }}
+
+        {{ forms.textField({
+            label: 'Block for the page content'|t('small-change'),
+            instructions: 'The name of the block in that layout where the page content goes.'|t('small-change'),
+            id: 'block',
+            name: 'block',
+            value: values.block,
+            size: 20,
+        }) }}
+
+        {{ forms.textField({
+            label: 'Folder'|t('small-change'),
+            instructions: 'Optional. Put everything in a folder inside your templates folder, such as small-change, when your site already has pages at /cart or /checkout. The pages are then at /small-change/cart, and so on.'|t('small-change'),
+            id: 'folder',
+            name: 'folder',
+            value: values.folder ?? '',
+            placeholder: 'small-change',
+            size: 30,
+        }) }}
+
+        {{ forms.checkboxField({
+            label: 'Replace files that already exist'|t('small-change'),
+            instructions: 'Off by default. Turn it on to overwrite pages you have already installed (it will ask first).'|t('small-change'),
+            id: 'overwrite',
+            name: 'overwrite',
+            value: 1,
+            checked: values.overwrite,
+        }) }}
+
+        <button type="submit" class="btn submit">{{ 'Install templates'|t('small-change') }}</button>
+        <p class="light smalltext">{{ 'Installs into {path}'|t('small-change', { path: templatesFolder }) }}</p>
+    </form>
+{% endblock %}

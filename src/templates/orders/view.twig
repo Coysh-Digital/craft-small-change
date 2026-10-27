@@ -1,0 +1,569 @@
+{% extends 'small-change/_layout' %}
+{% import '_includes/forms.twig' as forms %}
+
+{# A link to a Stripe dashboard page, in test mode's own section when the payment was a test. #}
+{% macro stripeLink(mode, path, id) %}
+    <a href="https://dashboard.stripe.com/{{ mode == 'test' ? 'test/' : '' }}{{ path }}/{{ id }}" target="_blank" rel="noopener"><code>{{ id }}</code></a>
+{% endmacro %}
+
+{% macro statusLabel(color, label) %}
+    <span class="status-label {{ color }}"><span class="status {{ color }}"></span> <span class="status-label-text">{{ label }}</span></span>
+{% endmacro %}
+
+{% from _self import stripeLink, statusLabel %}
+
+{% set selectedSubnavItem = 'orders' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Orders'|t('small-change'), url: url('small-change/orders') },
+] %}
+{% set fmt = craft.smallChange %}
+
+{# The pane ids are prefixed because Craft's own page already has an element with the id "details". #}
+{% set tabs = {
+    details: { label: 'Details'|t('small-change'), url: '#order-details' },
+    payments: { label: payments|length > 1 ? 'Payments ({count})'|t('small-change', { count: payments|length }) : 'Payments'|t('small-change'), url: '#order-payments' },
+} %}
+{% set selectedTab = 'details' %}
+
+{% set statusDef = order.status ? (order.statuses()[order.status] ?? null) : null %}
+{% set statusText = statusDef.label ?? (order.status ?: 'Not yet an order'|t('small-change')) %}
+{% set statusColor = statusDef.color ?? 'grey' %}
+
+{% set paymentStatuses = {
+    succeeded: { label: 'Succeeded'|t('small-change'), color: 'green' },
+    pending: { label: 'Pending'|t('small-change'), color: 'orange' },
+    failed: { label: 'Failed'|t('small-change'), color: 'red' },
+    canceled: { label: 'Cancelled'|t('small-change'), color: 'grey' },
+} %}
+{% set refundStatuses = {
+    succeeded: { label: 'Succeeded'|t('small-change'), color: 'green' },
+    pending: { label: 'Pending'|t('small-change'), color: 'orange' },
+    requires_action: { label: 'Needs action'|t('small-change'), color: 'orange' },
+    failed: { label: 'Failed'|t('small-change'), color: 'red' },
+    canceled: { label: 'Cancelled'|t('small-change'), color: 'grey' },
+} %}
+{% set intervals = { month: 'monthly'|t('small-change'), year: 'yearly'|t('small-change') } %}
+
+{% css %}
+    .sc-section {
+        margin-block-end: var(--xl);
+    }
+    .sc-section > h2 {
+        margin-block: 0 var(--s);
+    }
+    .sc-items th.right,
+    .sc-items td.right {
+        text-align: end;
+        white-space: nowrap;
+    }
+    .details .status-label {
+        white-space: nowrap;
+    }
+    .sc-section td code {
+        overflow-wrap: anywhere;
+    }
+    .sc-bits {
+        color: var(--light-text-color);
+        display: flex;
+        flex-wrap: wrap;
+        font-size: 12px;
+        list-style: none;
+        margin: var(--xs) 0 0;
+        padding: 0;
+    }
+    .sc-bits li + li::before {
+        content: "\00b7";
+        margin-inline: var(--xs);
+    }
+    .sc-totals {
+        display: grid;
+        gap: var(--xs) 0;
+        grid-template-columns: max-content max-content;
+        justify-content: end;
+        margin: var(--m) 0 0;
+    }
+    .sc-totals dt,
+    .sc-totals dd {
+        margin: 0;
+    }
+    .sc-totals dd {
+        font-variant-numeric: tabular-nums;
+        padding-inline-start: var(--xl);
+        text-align: end;
+    }
+    .sc-totals .sc-total {
+        border-block-start: 1px solid var(--medium-hairline-color);
+        font-size: 1.15em;
+        font-weight: 700;
+        padding-block-start: var(--s);
+    }
+    .sc-cards {
+        display: grid;
+        gap: var(--m);
+        grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    }
+    .sc-card {
+        border: 1px solid var(--medium-hairline-color);
+        border-radius: var(--large-border-radius);
+        padding: var(--m) var(--l);
+    }
+    .sc-card > h3 {
+        color: var(--light-text-color);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        margin: 0 0 var(--s);
+        text-transform: uppercase;
+    }
+    .sc-card p {
+        margin: var(--s) 0 0;
+    }
+    .sc-card form {
+        margin-block-start: var(--m);
+    }
+    .sc-person {
+        align-items: center;
+        display: flex;
+        gap: var(--m);
+    }
+    .sc-avatar {
+        align-items: center;
+        background: var(--gray-100);
+        border-radius: 50%;
+        display: inline-flex;
+        flex: none;
+        font-weight: 700;
+        height: 2.5rem;
+        justify-content: center;
+        width: 2.5rem;
+    }
+    .sc-stats {
+        display: grid;
+        gap: var(--m);
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+    }
+    .sc-stat {
+        border: 1px solid var(--medium-hairline-color);
+        border-radius: var(--large-border-radius);
+        padding: var(--m) var(--l);
+    }
+    .sc-stat .sc-stat-label {
+        color: var(--light-text-color);
+        font-size: 12px;
+    }
+    .sc-stat .sc-stat-value {
+        font-size: 1.4em;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+    }
+    .sc-refund details {
+        margin-block-start: var(--m);
+    }
+    .sc-refund form {
+        margin-block-start: var(--m);
+        max-width: 28rem;
+    }
+    .sc-refs {
+        display: grid;
+        gap: var(--xs) var(--xl);
+        grid-template-columns: max-content 1fr;
+        margin: 0;
+    }
+    .sc-refs dt {
+        color: var(--light-text-color);
+    }
+    .sc-refs dd {
+        margin: 0;
+    }
+{% endcss %}
+
+{% block content %}
+    <div id="order-details">
+        <section class="sc-section">
+            <table class="data fullwidth sc-items">
+                <thead>
+                    <tr>
+                        <th>{{ 'Item'|t('small-change') }}</th>
+                        <th class="right">{{ 'Unit price'|t('small-change') }}</th>
+                        <th class="right">{{ 'Qty'|t('small-change') }}</th>
+                        <th class="right">{{ 'Total'|t('small-change') }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.lineItems %}
+                        <tr>
+                            <td>
+                                <strong>{{ item.description }}</strong>
+                                {% set isDonation = item.kind == 'donation' %}
+                                {% if item.sku or isDonation or (order.giftAidDeclared and item.isGiftAidEligible) %}
+                                    <ul class="sc-bits">
+                                        {% if item.sku %}<li><code>{{ item.sku }}</code></li>{% endif %}
+                                        {% if isDonation %}<li>{{ 'Donation'|t('small-change') }}{% if item.recurringInterval %}, {{ intervals[item.recurringInterval] ?? item.recurringInterval }}{% endif %}</li>{% endif %}
+                                        {% if order.giftAidDeclared and item.isGiftAidEligible %}<li>{{ 'Gift Aid eligible'|t('small-change') }}</li>{% endif %}
+                                    </ul>
+                                {% endif %}
+                            </td>
+                            <td class="right">{{ fmt.formatMoney(item.unitPrice, order.currency) }}</td>
+                            <td class="right">{{ item.qty }}</td>
+                            <td class="right">{{ fmt.formatMoney(item.subtotal, order.currency) }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <dl class="sc-totals">
+                <dt>{{ 'Subtotal'|t('small-change') }}</dt>
+                <dd>{{ fmt.formatMoney(order.itemSubtotal, order.currency) }}</dd>
+                {% if order.discountAmount %}
+                    <dt>{{ 'Discount'|t('small-change') }}{% if order.discountCode %} <code>{{ order.discountCode }}</code>{% endif %}</dt>
+                    <dd>&minus;{{ fmt.formatMoney(order.discountAmount, order.currency) }}</dd>
+                {% endif %}
+                {% if order.shippingAmount or order.shippingMethodName %}
+                    <dt>{{ 'Delivery'|t('small-change') }}{% if order.shippingMethodName %} <span class="light">· {{ order.shippingMethodName }}</span>{% endif %}</dt>
+                    <dd>{{ fmt.formatMoney(order.shippingAmount, order.currency) }}</dd>
+                {% endif %}
+                <dt class="sc-total">{{ 'Total'|t('small-change') }}</dt>
+                <dd class="sc-total">{{ fmt.formatMoney(order.total, order.currency) }}</dd>
+            </dl>
+        </section>
+
+        <section class="sc-section">
+            <div class="sc-cards">
+                <div class="sc-card">
+                    <h3>{{ (order.hasDonation ? 'Donor' : 'Customer')|t('small-change') }}</h3>
+                    {% if order.dateAnonymised %}
+                        <p class="light">{{ 'Personal data erased on {date}.'|t('small-change', { date: order.dateAnonymised|datetime('short') }) }}</p>
+                    {% else %}
+                        <div class="sc-person">
+                            <span class="sc-avatar" aria-hidden="true">{{ (customerName ?: order.email ?: '?')|first|upper }}</span>
+                            <div>
+                                {% if customerName %}<strong>{{ customerName }}</strong><br>{% endif %}
+                                {% if order.email %}<a href="mailto:{{ order.email }}">{{ order.email }}</a>{% else %}<span class="light">{{ 'No email address'|t('small-change') }}</span>{% endif %}
+                            </div>
+                        </div>
+                        <p>{% if order.user %}{{ elementChip(order.user, { showStatus: false }) }}{% else %}<span class="light">{{ 'Guest, not signed in'|t('small-change') }}</span>{% endif %}</p>
+                        {% if order.email %}
+                            <p><a href="{{ cpUrl('small-change/orders', { search: order.email }) }}">{{ 'All orders from this email'|t('small-change') }}</a></p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+
+                {% if order.shippingAddress or order.requiresShipping %}
+                    <div class="sc-card">
+                        <h3>{{ 'Delivery'|t('small-change') }}</h3>
+                        {% if order.shippingAddress %}
+                            {{ order.shippingAddress|address }}
+                            <p class="light">
+                                {{ order.shippingMethodName ?: 'No method chosen'|t('small-change') }}
+                                {% if order.shippingAmount %}· {{ fmt.formatMoney(order.shippingAmount, order.currency) }}{% endif %}
+                            </p>
+                        {% else %}
+                            <p class="light">{{ 'No delivery address was entered.'|t('small-change') }}</p>
+                        {% endif %}
+
+                        {% if order.state == 'completed' and canManage %}
+                            <form method="post" accept-charset="UTF-8">
+                                {{ csrfInput() }}
+                                {{ actionInput('small-change/orders/mark-fulfilled') }}
+                                {{ redirectInput('small-change/orders/' ~ order.id) }}
+                                {{ hiddenInput('orderId', order.id) }}
+                                {% if order.dateFulfilled %}
+                                    <p>{{ 'Dispatched on {date}.'|t('small-change', { date: order.dateFulfilled|datetime('short') }) }}
+                                        {{ hiddenInput('undo', '1') }}
+                                        <button type="submit" class="btn small">{{ 'Undo'|t('small-change') }}</button>
+                                    </p>
+                                {% else %}
+                                    <button type="submit" class="btn submit">{{ 'Mark as dispatched'|t('small-change') }}</button>
+                                {% endif %}
+                            </form>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
+                {% if order.billingAddress %}
+                    <div class="sc-card">
+                        <h3>{{ (order.giftAidDeclared ? 'Home address (Gift Aid)' : 'Billing address')|t('small-change') }}</h3>
+                        {{ order.billingAddress|address }}
+                    </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% set customFields = order.fieldLayout ? order.fieldLayout.customFields : [] %}
+        {% if customFields %}
+            <section class="sc-section">
+                <h2>{{ (order.hasDonation ? 'Donation details' : 'Checkout details')|t('small-change') }}</h2>
+                <table class="data fullwidth">
+                    <tbody>
+                        {% for field in customFields %}
+                            {% set value = order.getFieldValue(field.handle) %}
+                            <tr>
+                                <th scope="row">{{ field.name }}</th>
+                                <td>{{ field.getStaticHtml(value, order)|raw ?: '-' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if order.customerNote %}
+            <section class="sc-section">
+                <h2>{{ 'Customer note'|t('small-change') }}</h2>
+                <p>{{ order.customerNote|nl2br }}</p>
+            </section>
+        {% endif %}
+    </div>
+
+    <div id="order-payments" class="hidden">
+        <section class="sc-section">
+            <div class="sc-stats">
+                <div class="sc-stat"><div class="sc-stat-label">{{ (order.kind == 'recurring' ? 'Each payment' : 'Total')|t('small-change') }}</div><div class="sc-stat-value">{{ fmt.formatMoney(order.total, order.currency) }}</div></div>
+                <div class="sc-stat"><div class="sc-stat-label">{{ 'Paid'|t('small-change') }}</div><div class="sc-stat-value">{{ fmt.formatMoney(order.totalPaid, order.currency) }}</div></div>
+                <div class="sc-stat"><div class="sc-stat-label">{{ 'Refunded'|t('small-change') }}</div><div class="sc-stat-value">{{ fmt.formatMoney(order.totalRefunded, order.currency) }}</div></div>
+                <div class="sc-stat"><div class="sc-stat-label">{{ 'Kept'|t('small-change') }}</div><div class="sc-stat-value">{{ fmt.formatMoney(order.totalPaid - order.totalRefunded, order.currency) }}</div></div>
+            </div>
+        </section>
+
+        <section class="sc-section">
+            <h2>{{ 'Payments'|t('small-change') }}</h2>
+            {% if payments %}
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>{{ 'Paid'|t('small-change') }}</th>
+                            <th>{{ 'Amount'|t('small-change') }}</th>
+                            <th>{{ 'Status'|t('small-change') }}</th>
+                            <th>{{ 'Refunded'|t('small-change') }}</th>
+                            <th>{{ 'Receipt'|t('small-change') }}</th>
+                            <th>{{ 'Stripe'|t('small-change') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for payment in payments %}
+                            {% set def = paymentStatuses[payment.status] ?? { label: payment.status, color: 'grey' } %}
+                            <tr>
+                                <td>{{ payment.paidDate ? payment.paidDate|datetime('short') : '-' }}</td>
+                                <td>{{ fmt.formatMoney(payment.amount, payment.currency) }}</td>
+                                <td>
+                                    {{ statusLabel(def.color, def.label) }}
+                                    {% if payment.failureMessage %}<div class="light smalltext">{{ payment.failureMessage }}</div>{% endif %}
+                                    {% if payment.stripeDisputeId %}
+                                        <div class="smalltext">{{ 'Disputed'|t('small-change') }}{% if payment.disputeStatus %}, {{ payment.disputeStatus|replace({'_': ' '}) }}{% endif %} {{ stripeLink(payment.stripeMode, 'disputes', payment.stripeDisputeId) }}</div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ payment.amountRefunded ? fmt.formatMoney(payment.amountRefunded, payment.currency) : '-' }}</td>
+                                <td>
+                                    {% if payment.receiptSentDate %}
+                                        {{ 'Sent {date}'|t('small-change', { date: payment.receiptSentDate|date('short') }) }}
+                                    {% elseif payment.status == 'succeeded' %}
+                                        <span class="light">{{ 'Not sent'|t('small-change') }}</span>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if payment.stripePaymentIntentId %}<div>{{ stripeLink(payment.stripeMode, 'payments', payment.stripePaymentIntentId) }}</div>{% endif %}
+                                    {% if payment.stripeInvoiceId %}<div>{{ stripeLink(payment.stripeMode, 'invoices', payment.stripeInvoiceId) }}</div>{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                {% if canRefund %}
+                    <div class="sc-refund">
+                        {% for payment in payments|filter(p => (refundable[p.id] ?? 0) > 0) %}
+                            <details>
+                                <summary class="btn small">{{ 'Refund…'|t('small-change') }}{% if payments|length > 1 %} <span class="light">· {{ fmt.formatMoney(payment.amount, payment.currency) }}{% if payment.paidDate %}, {{ payment.paidDate|date('short') }}{% endif %}</span>{% endif %}</summary>
+                                <form method="post" accept-charset="UTF-8" onsubmit="return confirm({{ 'Refund this payment? This cannot be undone.'|t('small-change')|json_encode }})">
+                                    {{ csrfInput() }}
+                                    {{ actionInput('small-change/payments/refund') }}
+                                    {{ hiddenInput('paymentId', payment.id) }}
+                                    {{ forms.textField({
+                                        label: 'Amount to refund ({currency})'|t('small-change', { currency: order.currency }),
+                                        instructions: 'Up to {max}. Stripe does not return its processing fee on a refund.'|t('small-change', { max: fmt.formatMoney(refundable[payment.id], order.currency) }),
+                                        id: 'refund-amount-' ~ payment.id, name: 'amount', value: fmt.decimal(refundable[payment.id], order.currency), size: 8,
+                                    }) }}
+                                    {{ forms.selectField({
+                                        label: 'Reason'|t('small-change'),
+                                        id: 'refund-reason-' ~ payment.id, name: 'reason',
+                                        options: [
+                                            { value: '', label: 'Not specified'|t('small-change') },
+                                            { value: 'requested_by_customer', label: 'Requested by the donor'|t('small-change') },
+                                            { value: 'duplicate', label: 'Duplicate'|t('small-change') },
+                                            { value: 'fraudulent', label: 'Fraudulent'|t('small-change') },
+                                        ],
+                                    }) }}
+                                    {{ forms.textField({ label: 'Note for staff'|t('small-change'), id: 'refund-note-' ~ payment.id, name: 'note' }) }}
+                                    <button type="submit" class="btn submit">{{ 'Refund'|t('small-change') }}</button>
+                                </form>
+                            </details>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% else %}
+                <p class="light">{{ 'No payment has been recorded yet.'|t('small-change') }}</p>
+            {% endif %}
+        </section>
+
+        {% if refunds %}
+            <section class="sc-section">
+                <h2>{{ 'Refunds'|t('small-change') }}</h2>
+                <table class="data fullwidth">
+                    <thead>
+                        <tr>
+                            <th>{{ 'Date'|t('small-change') }}</th>
+                            <th>{{ 'Amount'|t('small-change') }}</th>
+                            <th>{{ 'Status'|t('small-change') }}</th>
+                            <th>{{ 'Reason'|t('small-change') }}</th>
+                            <th>{{ 'Note'|t('small-change') }}</th>
+                            <th>{{ 'By'|t('small-change') }}</th>
+                            <th>{{ 'Stripe'|t('small-change') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for refund in refunds %}
+                            {% set def = refundStatuses[refund.status] ?? { label: refund.status, color: 'grey' } %}
+                            <tr>
+                                <td>{{ refund.dateCreated|datetime('short') }}</td>
+                                <td>{{ fmt.formatMoney(refund.amount, order.currency) }}</td>
+                                <td>
+                                    {{ statusLabel(def.color, def.label) }}
+                                    {% if refund.failureReason %}<div class="light smalltext">{{ refund.failureReason|replace({'_': ' '}) }}</div>{% endif %}
+                                </td>
+                                <td>{{ refund.reason ? refund.reason|replace({'_': ' '}) : '-' }}</td>
+                                <td>{{ refund.note ?: '-' }}</td>
+                                <td>
+                                    {% if refund.userId and refundUsers[refund.userId] is defined %}
+                                        {{ elementChip(refundUsers[refund.userId], { showStatus: false }) }}
+                                    {% else %}
+                                        <span class="light">{{ 'Stripe'|t('small-change') }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><code>{{ refund.stripeRefundId }}</code></td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </section>
+        {% endif %}
+
+        {% if subscription %}
+            <section class="sc-section">
+                <h2>{{ 'Recurring donation'|t('small-change') }}</h2>
+                <p>
+                    {{ fmt.formatMoney(subscription.amount, subscription.currency) }} / {{ subscription.interval }} · {{ subscription.status|replace({'_': ' '}) }}
+                    · <a href="{{ url('small-change/subscriptions/' ~ subscription.id) }}">{{ 'Manage'|t('small-change') }}</a>
+                </p>
+            </section>
+        {% endif %}
+
+        {% if order.stripeCheckoutSessionId or (customer and customer.stripeCustomerId) or subscription %}
+            <section class="sc-section">
+                <h2>{{ 'In Stripe'|t('small-change') }}</h2>
+                <dl class="sc-refs">
+                    <dt>{{ 'Mode'|t('small-change') }}</dt>
+                    <dd>{{ order.stripeMode == 'test' ? 'Test'|t('small-change') : 'Live'|t('small-change') }}</dd>
+                    {% if order.stripeCheckoutSessionId %}
+                        <dt>{{ 'Checkout session'|t('small-change') }}</dt>
+                        <dd><code>{{ order.stripeCheckoutSessionId }}</code></dd>
+                    {% endif %}
+                    {% if customer and customer.stripeCustomerId %}
+                        <dt>{{ 'Customer'|t('small-change') }}</dt>
+                        <dd>{{ stripeLink(order.stripeMode, 'customers', customer.stripeCustomerId) }}</dd>
+                    {% endif %}
+                    {% if subscription and subscription.stripeSubscriptionId %}
+                        <dt>{{ 'Subscription'|t('small-change') }}</dt>
+                        <dd>{{ stripeLink(order.stripeMode, 'subscriptions', subscription.stripeSubscriptionId) }}</dd>
+                    {% endif %}
+                </dl>
+            </section>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block details %}
+    <div class="meta read-only">
+        <div class="data"><h5 class="heading">{{ 'Status'|t('small-change') }}</h5><div class="value">{{ statusLabel(statusColor, statusText) }}</div></div>
+        {% if order.stripeMode %}<div class="data"><h5 class="heading">{{ 'Mode'|t('small-change') }}</h5><div class="value">{{ order.stripeMode == 'test' ? 'Test'|t('small-change') : 'Live'|t('small-change') }}</div></div>{% endif %}
+        <div class="data"><h5 class="heading">{{ 'Number'|t('small-change') }}</h5><div class="value"><code>{{ order.number }}</code></div></div>
+        <div class="data"><h5 class="heading">{{ 'Placed'|t('small-change') }}</h5><div class="value">{{ order.dateCreated|datetime('short') }}</div></div>
+        <div class="data"><h5 class="heading">{{ 'Completed'|t('small-change') }}</h5><div class="value">{{ order.dateCompleted ? order.dateCompleted|datetime('short') : '-' }}</div></div>
+    </div>
+
+    {% if order.dateFulfilled %}
+        <div class="meta read-only">
+            <div class="data"><h5 class="heading">{{ 'Dispatched'|t('small-change') }}</h5><div class="value">{{ order.dateFulfilled|datetime('short') }}</div></div>
+        </div>
+    {% endif %}
+
+    {% set actions %}
+        {% if canManage and receiptsEnabled and order.state == 'completed' and order.email %}
+            <form method="post" accept-charset="UTF-8">
+                {{ csrfInput() }}
+                {{ actionInput('small-change/orders/resend-receipt') }}
+                {{ redirectInput('small-change/orders/' ~ order.id) }}
+                {{ hiddenInput('orderId', order.id) }}
+                <button type="submit" class="btn small">{{ 'Resend receipt'|t('small-change') }}</button>
+            </form>
+        {% endif %}
+
+        {% if canManage and order.state == 'pending' %}
+            <form method="post" accept-charset="UTF-8" onsubmit="return confirm({{ 'Cancel this order? The donor will no longer be able to pay for it.'|t('small-change')|json_encode }})">
+                {{ csrfInput() }}
+                {{ actionInput('small-change/orders/cancel') }}
+                {{ redirectInput('small-change/orders/' ~ order.id) }}
+                {{ hiddenInput('orderId', order.id) }}
+                <button type="submit" class="btn small">{{ 'Cancel order'|t('small-change') }}</button>
+            </form>
+        {% endif %}
+
+        {% if canAnonymise and order.email and not order.dateAnonymised and order.state in ['completed', 'cancelled'] %}
+            <form method="post" accept-charset="UTF-8" onsubmit="return confirm({{ 'Erase the personal data of this donor from every order, customer record and stored Stripe event? Amounts and dates are kept. This cannot be undone.'|t('small-change')|json_encode }})">
+                {{ csrfInput() }}
+                {{ actionInput('small-change/orders/anonymise') }}
+                {{ redirectInput('small-change/orders/' ~ order.id) }}
+                {{ hiddenInput('orderId', order.id) }}
+                <button type="submit" class="btn small">{{ 'Erase personal data…'|t('small-change') }}</button>
+            </form>
+        {% endif %}
+    {% endset %}
+    {% if actions|trim %}
+        <div class="meta sc-actions">{{ actions }}</div>
+    {% endif %}
+
+    {% if order.dateAnonymised %}
+        <div class="meta read-only">
+            <div class="data"><h5 class="heading">{{ 'Personal data erased'|t('small-change') }}</h5><div class="value">{{ order.dateAnonymised|datetime('short') }}</div></div>
+        </div>
+    {% endif %}
+
+    {% if canManage %}
+        <div class="meta sc-note">
+            <form method="post" accept-charset="UTF-8">
+                {{ csrfInput() }}
+                {{ actionInput('small-change/orders/save-note') }}
+                {{ redirectInput('small-change/orders/' ~ order.id) }}
+                {{ hiddenInput('orderId', order.id) }}
+                <label for="adminNote"><strong>{{ 'Note for staff'|t('small-change') }}</strong></label>
+                <p class="light">{{ 'Only visible here.'|t('small-change') }}</p>
+                {{ forms.textarea({ id: 'adminNote', name: 'adminNote', value: order.adminNote, rows: 3, class: 'fullwidth' }) }}
+                <button type="submit" class="btn small">{{ 'Save note'|t('small-change') }}</button>
+            </form>
+        </div>
+    {% elseif order.adminNote %}
+        <div class="meta read-only">
+            <div class="data"><h5 class="heading">{{ 'Note for staff'|t('small-change') }}</h5><div class="value">{{ order.adminNote|nl2br }}</div></div>
+        </div>
+    {% endif %}
+
+    {% if order.giftAidDeclared is not null %}
+        <div class="meta read-only">
+            <div class="data"><h5 class="heading">{{ 'Gift Aid'|t('small-change') }}</h5><div class="value">{{ order.giftAidDeclared ? 'Declared'|t('small-change') : 'Not declared'|t('small-change') }}</div></div>
+            {% if order.giftAidDeclared %}
+                <div class="data"><h5 class="heading">{{ 'Eligible amount'|t('small-change') }}</h5><div class="value">{{ fmt.formatMoney(order.giftAidEligibleAmount, order.currency) }}</div></div>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endblock %}

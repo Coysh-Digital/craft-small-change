@@ -1,0 +1,90 @@
+{% extends 'small-change/_layout' %}
+
+{% set selectedSubnavItem = 'subscriptions' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+    { label: 'Recurring donations'|t('small-change'), url: url('small-change/subscriptions') },
+] %}
+{% set fmt = craft.smallChange %}
+
+{% block content %}
+    <p>
+        <span class="status {{ subscription.status == 'active' ? 'green' : (subscription.status in ['past_due', 'unpaid'] ? 'red' : 'disabled') }}"></span>
+        {{ subscription.status|replace({'_': ' '}) }}
+        {% if subscription.stripeMode == 'test' %}<span class="code"> · {{ 'test mode'|t('small-change') }}</span>{% endif %}
+    </p>
+    <p>
+        {{ fmt.formatMoney(subscription.amount, subscription.currency) }} {{ 'every'|t('small-change') }} {{ subscription.interval }}
+        {% if subscription.giftAidDeclared %}· {{ 'Gift Aid declared'|t('small-change') }}{% endif %}
+    </p>
+
+    {% if subscription.isLive %}
+        {% if subscription.cancelAtPeriodEnd %}
+            <p class="warning with-icon">{{ 'This will end on {date} and not renew.'|t('small-change', { date: subscription.currentPeriodEnd ? subscription.currentPeriodEnd|date('short') : '-' }) }}</p>
+        {% elseif subscription.currentPeriodEnd %}
+            <p>{{ 'Next payment on {date}.'|t('small-change', { date: subscription.currentPeriodEnd|date('short') }) }}</p>
+        {% endif %}
+        {% if subscription.lastFailureAt %}
+            <p class="warning with-icon">{{ 'A payment failed on {date}. Stripe may retry it automatically, and the donor has been emailed.'|t('small-change', { date: subscription.lastFailureAt|datetime('short') }) }}</p>
+        {% endif %}
+    {% endif %}
+
+    <h2>{{ 'Payments'|t('small-change') }}</h2>
+    {% if payments %}
+        <table class="data fullwidth">
+            <thead><tr><th>{{ 'Status'|t('small-change') }}</th><th>{{ 'Amount'|t('small-change') }}</th><th>{{ 'Paid'|t('small-change') }}</th></tr></thead>
+            <tbody>
+                {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.status }}</td>
+                        <td>{{ fmt.formatMoney(payment.amount, payment.currency) }}</td>
+                        <td>{{ payment.paidAt ? payment.paidAt|date('short') : '-' }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if order %}<p class="light">{{ 'Refunds are made from the order.'|t('small-change') }} <a href="{{ url('small-change/orders/' ~ order.id) }}">{{ order.number }}</a></p>{% endif %}
+    {% else %}
+        <p class="light">{{ 'No payment has been recorded yet.'|t('small-change') }}</p>
+    {% endif %}
+{% endblock %}
+
+{% block details %}
+    <div class="meta read-only">
+        <div class="data"><h5 class="heading">{{ 'Donor'|t('small-change') }}</h5><div class="value">{{ order and order.email ? order.email : '-' }}</div></div>
+        <div class="data"><h5 class="heading">{{ 'Started'|t('small-change') }}</h5><div class="value">{{ subscription.dateCreated ? subscription.dateCreated|datetime('short') : '-' }}</div></div>
+        {% if subscription.endedAt %}<div class="data"><h5 class="heading">{{ 'Ended'|t('small-change') }}</h5><div class="value">{{ subscription.endedAt|datetime('short') }}</div></div>{% endif %}
+        <div class="data"><h5 class="heading">{{ 'Stripe'|t('small-change') }}</h5><div class="value"><a href="https://dashboard.stripe.com/{{ subscription.stripeMode == 'test' ? 'test/' : '' }}subscriptions/{{ subscription.stripeSubscriptionId }}" target="_blank" rel="noopener"><code>{{ subscription.stripeSubscriptionId }}</code></a></div></div>
+    </div>
+
+    <div class="meta sc-actions">
+        <form method="post" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ actionInput('small-change/subscriptions/refresh') }}
+            {{ redirectInput('small-change/subscriptions/' ~ subscription.id) }}
+            {{ hiddenInput('subscriptionId', subscription.id) }}
+            <button type="submit" class="btn small">{{ 'Check with Stripe'|t('small-change') }}</button>
+        </form>
+
+        {% if subscription.isLive %}
+            {% if not subscription.cancelAtPeriodEnd %}
+                <form method="post" accept-charset="UTF-8" onsubmit="return confirm({{ 'Stop this donation at the end of the period already paid for?'|t('small-change')|json_encode }})">
+                    {{ csrfInput() }}
+                    {{ actionInput('small-change/subscriptions/cancel') }}
+                    {{ redirectInput('small-change/subscriptions/' ~ subscription.id) }}
+                    {{ hiddenInput('subscriptionId', subscription.id) }}
+                    {{ hiddenInput('atPeriodEnd', '1') }}
+                    <button type="submit" class="btn small">{{ 'Cancel at period end'|t('small-change') }}</button>
+                </form>
+            {% endif %}
+            <form method="post" accept-charset="UTF-8" onsubmit="return confirm({{ 'Cancel this donation now? No further payments will be taken.'|t('small-change')|json_encode }})">
+                {{ csrfInput() }}
+                {{ actionInput('small-change/subscriptions/cancel') }}
+                {{ redirectInput('small-change/subscriptions/' ~ subscription.id) }}
+                {{ hiddenInput('subscriptionId', subscription.id) }}
+                {{ hiddenInput('atPeriodEnd', '0') }}
+                <button type="submit" class="btn small">{{ 'Cancel now'|t('small-change') }}</button>
+            </form>
+        {% endif %}
+    </div>
+{% endblock %}

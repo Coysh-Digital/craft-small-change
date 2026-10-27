@@ -1,0 +1,15 @@
+{# A "raised so far" counter. donationTotal() returns one number in minor units (pence, for sterling) and
+   nothing about donors, so it's safe to show to anyone. Change target to your own goal, in the same minor units.
+   Include it with {% include 'donate/_progress' ignore missing %}. The name starts with an underscore, and
+   "ignore missing" means a site that hasn't installed these templates yet shows nothing instead of an error. #}
+{% set fund = craft.smallChange.products({ kind: 'donation' }).one() %}
+
+{% if fund %}
+    {% set raised = craft.smallChange.donationTotal(fund, now|date_modify('first day of january this year')) %}
+    {% set target = 500000 %}
+    <p>
+        {{ craft.smallChange.formatMoney(raised, null, true) }} raised this year,
+        towards our goal of {{ craft.smallChange.formatMoney(target, null, true) }}
+    </p>
+    <progress max="{{ target }}" value="{{ min(raised, target) }}">{{ (raised / target * 100)|round }}%</progress>
+{% endif %}

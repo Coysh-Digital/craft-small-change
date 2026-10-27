@@ -1,0 +1,52 @@
+{% extends 'small-change/_layout' %}
+{% set title = 'Product types'|t('small-change') %}
+{% set selectedSubnavItem = 'productTypes' %}
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+] %}
+
+{% block actionButton %}
+    {% if not readOnly %}
+        <a class="btn submit add icon" href="{{ url('small-change/settings/product-types/new') }}">{{ 'New product type'|t('small-change') }}</a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+    {% if productTypes %}
+        <table class="data fullwidth">
+            <thead>
+                <tr>
+                    <th>{{ 'Name'|t('app') }}</th>
+                    <th>{{ 'Handle'|t('app') }}</th>
+                    <th>{{ 'Kind'|t('small-change') }}</th>
+                    <th class="thin"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for type in productTypes %}
+                    <tr data-id="{{ type.id }}" data-name="{{ type.name|e }}">
+                        <th scope="row"><a href="{{ url('small-change/settings/product-types/' ~ type.id) }}">{{ type.name }}</a></th>
+                        <td><code>{{ type.handle }}</code></td>
+                        <td>{{ kindLabels[type.kind] ?? type.kind }}</td>
+                        <td class="thin">
+                            {% if not readOnly %}
+                                <a class="delete icon" title="{{ 'Delete'|t('app') }}" role="button"></a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="zilch">{{ 'No product types yet. A donation type is what lets you take gifts.'|t('small-change') }}</p>
+    {% endif %}
+{% endblock %}
+
+{% js %}
+    new Craft.AdminTable({
+        tableSelector: '.data',
+        noObjectsSelector: '.zilch',
+        deleteAction: 'small-change/product-types/delete',
+        confirmDeleteMessage: {{ 'Are you sure you want to delete "{name}" and all its products?'|t('small-change')|json_encode|raw }},
+    });
+{% endjs %}

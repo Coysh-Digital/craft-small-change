@@ -1,0 +1,81 @@
+{# Checkout at /checkout: your details, then on to payment. One form posts to small-change/checkout/start. If something is missing, the page comes back with the problems marked and everything already saved. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Checkout' %}
+{% do craft.smallChange.registerScripts() %}
+{% set cart = cart ?? craft.smallChange.cart %}
+
+{% block content %}
+    <h1>Checkout</h1>
+
+    {% if not cart or not cart.lineItems %}
+        <p>Your basket is empty. <a href="/shop">Browse the shop</a>.</p>
+    {% else %}
+        {% if craft.app.session.getFlash('error') %}<p role="alert">{{ craft.app.session.getFlash('error') }}</p>{% endif %}
+        {% if cart.getFirstError('checkout') %}<p role="alert">{{ cart.getFirstError('checkout') }}</p>{% endif %}
+        {% if cart.getFirstError('items') %}<p role="alert">{{ cart.getFirstError('items') }}</p>{% endif %}
+
+        <form method="post" action="" accept-charset="UTF-8">
+            {{ csrfInput() }}
+            {{ actionInput('small-change/checkout/start') }}
+            {{ redirectInput('checkout/payment?number={number}') }}
+            {{ hiddenInput('returnUrl', 'checkout/complete'|hash) }}
+            {{ hiddenInput('paymentUrl', 'checkout/payment'|hash) }}
+
+            <p>
+                <label>
+                    Email address (for your receipt)
+                    <input type="email" name="email" value="{{ cart.email }}" autocomplete="email" required{% if cart.hasErrors('email') %} aria-invalid="true"{% endif %}>
+                </label>
+                {% if cart.hasErrors('email') %}<span role="alert">{{ cart.getFirstError('email') }}</span>{% endif %}
+            </p>
+
+            {% if cart.requiresShipping %}
+                <fieldset>
+                    <legend>Delivery address</legend>
+                    {% include '_small-change/address-fields' with { prefix: 'shippingAddress', address: cart.shippingAddress, order: cart } only %}
+                    {% if cart.getFirstError('shippingAddress') %}<span role="alert">{{ cart.getFirstError('shippingAddress') }}</span>{% endif %}
+                </fieldset>
+
+                {# Methods depend on where the order is going, so none are offered (or pre-ticked) until an address is saved. #}
+                {% set methods = cart.shippingCountryCode ? craft.smallChange.shippingMethods(cart) : [] %}
+                <fieldset>
+                    <legend>Delivery method</legend>
+                    {% if cart.shippingCountryCode is null %}
+                        <p>Enter your address and continue to see the delivery options.</p>
+                    {% elseif not methods %}
+                        <p role="alert">Sorry, we don't deliver to that country.</p>
+                    {% endif %}
+                    {% for method in methods %}
+                        <label>
+                            <input type="radio" name="shippingMethod" value="{{ method.id }}"{% if method.id == cart.shippingMethodId or methods|length == 1 %} checked{% endif %}>
+                            {{ method.name }} ({{ method.price ? craft.smallChange.formatMoney(method.price) : 'free' }})
+                        </label>
+                    {% endfor %}
+                    {% if cart.getFirstError('shippingMethod') %}<span role="alert">{{ cart.getFirstError('shippingMethod') }}</span>{% endif %}
+                </fieldset>
+            {% endif %}
+
+            {% include '_small-change/checkout-fields' with { order: cart } only %}
+
+            {% if craft.smallChange.giftAid.appliesTo(cart) %}
+                {% include '_small-change/gift-aid' with { order: cart } only %}
+            {% endif %}
+
+            <p>
+                <label>Note for us (optional) <textarea name="customerNote" rows="2">{{ cart.customerNote }}</textarea></label>
+            </p>
+
+            <h2>Order total</h2>
+            <p>
+                Items {{ craft.smallChange.formatMoney(cart.itemSubtotal, cart.currency) }}
+                {% if cart.discountAmount %}· Discount &minus;{{ craft.smallChange.formatMoney(cart.discountAmount, cart.currency) }}{% endif %}
+                {% if cart.shippingAmount %}· Delivery {{ craft.smallChange.formatMoney(cart.shippingAmount, cart.currency) }}{% endif %}
+                · <strong>Total {{ craft.smallChange.formatMoney(cart.total, cart.currency) }}</strong>
+            </p>
+
+            <button type="submit">Continue to payment</button>
+        </form>
+
+        <p><a href="/cart">Back to your basket</a></p>
+    {% endif %}
+{% endblock %}

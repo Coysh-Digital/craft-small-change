@@ -1,0 +1,71 @@
+{% extends '_layouts/cp.twig' %}
+
+{% set stripeStatus = craft.app.plugins.getPlugin('small-change').stripe.status() %}
+
+{% set crumbs = [
+    { label: 'Small Change'|t('small-change'), url: url('small-change') },
+] %}
+
+{# The same notice block Craft uses for its own pages, so the icon and spacing match the control panel. #}
+{% set contentNotice %}
+    {% if stripeStatus.mode == 'test' %}
+        <div class="content-notice">
+            <div class="content-notice-icon" aria-hidden="true"><div class="cp-icon">{{ iconSvg('flask') }}</div></div>
+            <p>{{ 'Stripe is in test mode. No real money moves.'|t('small-change') }}</p>
+        </div>
+    {% elseif stripeStatus.mode is null %}
+        <div class="content-notice">
+            <div class="content-notice-icon" aria-hidden="true"><div class="cp-icon">{{ iconSvg('triangle-exclamation') }}</div></div>
+            <p>
+                {{ 'Stripe is not configured yet.'|t('small-change') }}
+                {% if currentUser.admin %}
+                    <a href="{{ url('small-change/settings/stripe') }}">{{ 'Add your keys'|t('small-change') }}</a>
+                {% endif %}
+            </p>
+        </div>
+    {% endif %}
+{% endset %}
+
+{# Side panel boxes that hold a form: Craft only pads .data and .field rows inside .meta. #}
+{% css %}
+    .details .meta.sc-actions,
+    .details .meta.sc-note {
+        align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        gap: var(--s);
+        padding-block: var(--m);
+    }
+    .details .meta.sc-actions form,
+    .details .meta.sc-note form {
+        align-items: flex-start;
+        display: flex;
+        flex-direction: column;
+        gap: var(--xs);
+        margin: 0;
+        width: 100%;
+    }
+    .details .meta.sc-note p {
+        margin: 0;
+    }
+{% endcss %}
+
+{# Craft only follows a #tab link on element edit pages, so open the pane named in the address here. #}
+{% js on ready %}
+    (function () {
+        var manager = window.Craft && Craft.cp && Craft.cp.tabManager;
+        var hash = window.location.hash;
+
+        if (!manager || !hash) {
+            return;
+        }
+
+        var $tab = manager.$tabs.filter(function () {
+            return this.getAttribute('href') === hash;
+        });
+
+        if ($tab.length) {
+            manager.selectTab($tab.first(), false);
+        }
+    })();
+{% endjs %}

@@ -1,0 +1,70 @@
+{# The donation form (one-off or recurring). Include it on any page with
+   {% include 'donate/_form' with { product: product } %}, where product is a donation product. It posts to
+   small-change/donations/start, which creates the order and sends the donor on to /donate/payment.
+   A failed submission comes back to the page with the order and its errors, and every form on that page shares them. #}
+{% do craft.smallChange.registerScripts() %}
+{% set currency = craft.smallChange.currency %}
+{# On a failed submission the order comes back with its errors, but not the values the donor typed. #}
+{% set order = order ?? null %}
+
+{% if order and order.hasErrors() %}
+    <p role="alert">Please check the details below.</p>
+    {% if order.getFirstError('stripe') %}<p role="alert">{{ order.getFirstError('stripe') }}</p>{% endif %}
+{% endif %}
+
+<form method="post" action="" accept-charset="UTF-8" id="donate-form-{{ product.id }}">
+    {% include '_small-change/csrf' %}
+    {{ actionInput('small-change/donations/start') }}
+    {# Where to go next: the payment page, with the new order number filled in. #}
+    {{ redirectInput('donate/payment?number={number}') }}
+    {# The page shown after payment, and the payment page to return to if the donor backs out. #}
+    {{ hiddenInput('returnUrl', 'donate/complete'|hash) }}
+    {{ hiddenInput('paymentUrl', 'donate/payment'|hash) }}
+    {{ hiddenInput('productId', product.id) }}
+
+    <fieldset>
+        <legend>Amount</legend>
+
+        {% for amount in product.suggestedAmounts ?? [] %}
+            <label>
+                <input type="radio" name="suggestedAmount" value="{{ craft.smallChange.decimal(amount) }}"{% if loop.first %} checked{% endif %}>
+                {{ craft.smallChange.formatMoney(amount, null, true) }}
+            </label>
+        {% endfor %}
+
+        {% if product.allowCustomAmount %}
+            <label>
+                {{ product.suggestedAmounts ? 'Or enter an amount' : 'Amount' }} ({{ currency }})
+                <input type="text" name="amount" inputmode="decimal" autocomplete="off" placeholder="e.g. 20"{% if order and order.hasErrors('amount') %} aria-invalid="true"{% endif %}>
+            </label>
+        {% endif %}
+
+        {% if order and order.hasErrors('amount') %}<p role="alert">{{ order.getFirstError('amount') }}</p>{% endif %}
+    </fieldset>
+
+    {# Only offered when the product allows recurring donations. #}
+    {% if product.allowRecurring %}
+        <fieldset>
+            <legend>How often</legend>
+            <label><input type="radio" name="interval" value="" checked> Once</label>
+            {% for interval in product.allowedIntervals %}
+                <label><input type="radio" name="interval" value="{{ interval }}"> Every {{ interval }}</label>
+            {% endfor %}
+        </fieldset>
+    {% endif %}
+
+    <p>
+        <label>
+            Email address (for your receipt)
+            <input type="email" name="email" autocomplete="email" value="{{ (currentUser and not craft.app.plugins.isPluginEnabled('blitz')) ? currentUser.email }}" required{% if order and order.hasErrors('email') %} aria-invalid="true"{% endif %}>
+        </label>
+        {% if order and order.hasErrors('email') %}<span role="alert">{{ order.getFirstError('email') }}</span>{% endif %}
+    </p>
+
+    {# The fields you added under Small Change → Donation fields. #}
+    {% include '_small-change/checkout-fields' with { order: order, fields: craft.smallChange.donationFields } only %}
+
+    {% include '_small-change/gift-aid' with { order: order } %}
+
+    <button type="submit">Continue to payment</button>
+</form>

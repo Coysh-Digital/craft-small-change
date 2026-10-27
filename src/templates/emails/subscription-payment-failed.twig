@@ -1,0 +1,14 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: "We couldn't take your donation this time" }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Your {{ context.interval == 'year' ? 'yearly' : 'monthly' }} donation of {{ craft.smallChange.formatMoney(context.amount|default(order.total), order.currency) }} to {{ settings.charityName ?: siteName }} couldn't be taken, so nothing has been charged. Thank you for giving.</p>
+    {% endif %}
+    {% if context.invoiceUrl %}
+        <p><a href="{{ context.invoiceUrl }}">Update your card and pay now</a></p>
+    {% endif %}
+    {% if not content.message %}
+    <p>Stripe may try the payment again automatically, but a different card will sort it sooner.</p>
+    {% endif %}
+{% endblock %}

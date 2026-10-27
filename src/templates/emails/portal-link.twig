@@ -1,0 +1,11 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'Manage your recurring donation' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>Use this link to update your card or cancel your recurring donation to {{ settings.charityName ?: siteName }}.</p>
+    {% endif %}
+    <p>The link works for 15 minutes.</p>
+    <p><a href="{{ url }}">Manage my donation</a></p>
+    <p style="font-size:13px;color:#555;">If you didn't ask for this, you can ignore this email.</p>
+{% endblock %}

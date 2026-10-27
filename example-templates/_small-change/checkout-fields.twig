@@ -1,0 +1,102 @@
+{# Prints custom fields as form inputs. By default these are the fields you added under Small Change →
+   Checkout fields. The donation form passes craft.smallChange.donationFields instead. #}
+{% set order = order ?? null %}
+{% set fields = fields ?? craft.smallChange.checkoutFields %}
+
+{% for field in fields %}
+    {% set handle = field.handle %}
+    {% set name = 'fields[' ~ handle ~ ']' %}
+    {% set current = order ? order.getFieldValue(handle) : null %}
+    {% set type = className(field) %}
+
+    <p>
+        {% if type ends with 'Lightswitch' %}
+            {{ hiddenInput(name, '') }}
+            <label><input type="checkbox" name="{{ name }}" value="1"{% if current %} checked{% endif %}> {{ field.name }}</label>
+
+        {% elseif type ends with 'Dropdown' %}
+            <label>{{ field.name }}
+                <select name="{{ name }}"{% if field.required %} required{% endif %}>
+                    {% for option in field.options %}
+                        <option value="{{ option.value }}"{% if option.value == (current.value ?? '') %} selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+        {% elseif type ends with 'RadioButtons' or type ends with 'ButtonGroup' %}
+            <fieldset>
+                <legend>{{ field.name }}</legend>
+                {% for option in field.options %}
+                    <label><input type="radio" name="{{ name }}" value="{{ option.value }}"{% if option.value == (current.value ?? '') %} checked{% endif %}> {{ option.label }}</label>
+                {% endfor %}
+            </fieldset>
+
+        {% elseif type ends with 'Checkboxes' %}
+            <fieldset>
+                <legend>{{ field.name }}</legend>
+                {{ hiddenInput(name, '') }}
+                {% for option in field.options %}
+                    <label><input type="checkbox" name="{{ name }}[]" value="{{ option.value }}"{% if current and option.value in current.values() %} checked{% endif %}> {{ option.label }}</label>
+                {% endfor %}
+            </fieldset>
+
+        {% elseif type ends with 'MultiSelect' %}
+            <label>{{ field.name }}
+                {{ hiddenInput(name, '') }}
+                <select name="{{ name }}[]" multiple>
+                    {% for option in field.options %}
+                        <option value="{{ option.value }}"{% if current and option.value in current.values() %} selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+        {% elseif type ends with 'Country' %}
+            <label>{{ field.name }}
+                <select name="{{ name }}"{% if field.required %} required{% endif %}>
+                    <option value=""></option>
+                    {% for code, label in craft.app.addresses.countryList %}
+                        <option value="{{ code }}"{% if code == (current.countryCode ?? '') %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+        {% elseif type ends with 'Range' %}
+            <label>{{ field.name }}
+                <input type="range" name="{{ name }}" min="{{ field.min }}" max="{{ field.max }}" step="{{ field.step }}" value="{{ current ?? field.defaultValue ?? field.min }}">
+            </label>
+
+        {% elseif type ends with 'Date' %}
+            {% set withTime = field.showTime %}
+            <label>{{ field.name }}
+                <input type="{{ withTime ? 'datetime-local' : 'date' }}" name="{{ name }}" value="{{ current ? current|date(withTime ? 'Y-m-d\\TH:i' : 'Y-m-d') }}"{% if field.required %} required{% endif %}>
+            </label>
+
+        {% elseif type ends with 'Time' %}
+            <label>{{ field.name }}
+                <input type="time" name="{{ name }}" value="{{ current ? current|date('H:i') }}"{% if field.required %} required{% endif %}>
+            </label>
+
+        {% elseif type ends with 'Number' %}
+            <label>{{ field.name }}
+                <input type="number" name="{{ name }}" value="{{ current }}"{% if field.min is not null %} min="{{ field.min }}"{% endif %}{% if field.max is not null %} max="{{ field.max }}"{% endif %}{% if field.required %} required{% endif %}>
+            </label>
+
+        {% elseif type ends with 'Email' %}
+            <label>{{ field.name }}
+                <input type="email" name="{{ name }}" value="{{ current }}"{% if field.required %} required{% endif %}>
+            </label>
+
+        {% elseif type ends with 'PlainText' %}
+            <label>{{ field.name }}
+                {% if field.multiline %}
+                    <textarea name="{{ name }}" rows="{{ field.initialRows }}"{% if field.required %} required{% endif %}>{{ current }}</textarea>
+                {% else %}
+                    <input type="text" name="{{ name }}" value="{{ current }}"{% if field.required %} required{% endif %}>
+                {% endif %}
+            </label>
+        {% endif %}
+
+        {% if field.instructions %}<small>{{ field.instructions }}</small>{% endif %}
+        {% if order and order.hasErrors(handle) %}<span role="alert">{{ order.getFirstError(handle) }}</span>{% endif %}
+    </p>
+{% endfor %}

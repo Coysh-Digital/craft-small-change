@@ -1,0 +1,15 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: (order.hasDonation ? 'New donation' : 'New order') ~ ' ' ~ order.number }}</h1>
+    {{ content.message }}
+    <p style="margin:0;">From: {{ order.email }}</p>
+    <p style="margin:0;">Paid: {{ craft.smallChange.formatMoney(order.totalPaid, order.currency) }}</p>
+    {% if order.giftAidDeclared is not null %}
+        <p style="margin:0;">Gift Aid: {{ order.giftAidDeclared ? 'declared on ' ~ craft.smallChange.formatMoney(order.giftAidEligibleAmount, order.currency) : 'not declared' }}</p>
+    {% endif %}
+
+    {% include 'small-change/emails/_summary' %}
+
+    <p><a href="{{ cpUrl('small-change/orders/' ~ order.id) }}">View in the control panel</a></p>
+{% endblock %}

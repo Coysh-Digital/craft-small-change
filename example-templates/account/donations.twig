@@ -1,0 +1,34 @@
+{# What the signed-in user has given and bought, at /account/donations. craft.smallChange.orders() only returns the current user's own completed orders, so nobody can use this page to read anyone else's. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Your donations and orders' %}
+{% requireLogin %}
+
+{% block content %}
+    <h1>Your donations and orders</h1>
+
+    {% set orders = craft.smallChange.orders({ orderBy: 'dateCompleted desc' }).all() %}
+
+    {% if not orders %}
+        <p>You haven't given or bought anything yet.</p>
+    {% else %}
+        <table>
+            <thead>
+                <tr><th scope="col">Date</th><th scope="col">Reference</th><th scope="col">Total</th><th scope="col">Status</th></tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                    <tr>
+                        <td>{{ order.dateCompleted|date('j F Y') }}</td>
+                        <td>{{ order.number }}</td>
+                        <td>{{ craft.smallChange.formatMoney(order.total, order.currency) }}{% if order.kind == 'recurring' %} (recurring){% endif %}</td>
+                        <td>{{ order.paymentStatus|replace({'partiallyRefunded': 'partly refunded'}) }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if orders|filter(o => o.kind == 'recurring')|length %}
+            <p><a href="{{ actionUrl('small-change/portal/open', { returnUrl: siteUrl('account/donations')|hash }) }}">Manage your recurring donation</a></p>
+        {% endif %}
+    {% endif %}
+{% endblock %}

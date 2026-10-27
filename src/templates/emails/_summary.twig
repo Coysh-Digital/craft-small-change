@@ -1,0 +1,18 @@
+<table style="width:100%;border-collapse:collapse;margin:16px 0;">
+    {% for item in lineItems %}
+        <tr>
+            <td style="padding:6px 0;border-bottom:1px solid #eee;">{{ item.description }}{% if item.qty > 1 %} &times; {{ item.qty }}{% endif %}</td>
+            <td style="padding:6px 0;border-bottom:1px solid #eee;text-align:right;">{{ craft.smallChange.formatMoney(item.subtotal, order.currency) }}</td>
+        </tr>
+    {% endfor %}
+    {% if order.discountAmount %}
+        <tr><td style="padding:6px 0;">Discount</td><td style="padding:6px 0;text-align:right;">&minus;{{ craft.smallChange.formatMoney(order.discountAmount, order.currency) }}</td></tr>
+    {% endif %}
+    {% if order.shippingAmount %}
+        <tr><td style="padding:6px 0;">Delivery</td><td style="padding:6px 0;text-align:right;">{{ craft.smallChange.formatMoney(order.shippingAmount, order.currency) }}</td></tr>
+    {% endif %}
+    <tr>
+        <td style="padding:8px 0;font-weight:bold;">Total</td>
+        <td style="padding:8px 0;font-weight:bold;text-align:right;">{{ craft.smallChange.formatMoney(order.total, order.currency) }}</td>
+    </tr>
+</table>

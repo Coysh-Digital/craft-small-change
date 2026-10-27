@@ -1,0 +1,14 @@
+{# The donation page at /donate. The form itself is donate/_form, so it can also go on any other page. #}
+{% extends '_small-change/layout' %}
+{% set title = 'Donate' %}
+{% set product = craft.smallChange.products({ kind: 'donation' }).one() %}
+
+{% block content %}
+    <h1>{{ product ? product.title : 'Donate' }}</h1>
+
+    {% if not product %}
+        <p>Donations aren't available right now.</p>
+    {% else %}
+        {% include 'donate/_form' with { product: product } %}
+    {% endif %}
+{% endblock %}

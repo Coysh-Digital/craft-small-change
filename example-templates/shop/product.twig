@@ -1,0 +1,12 @@
+{# One product. Set this as the template in the product type's site settings (shop/product). #}
+{% extends '_small-change/layout' %}
+{% set title = product.title %}
+
+{% block content %}
+    <h1>{{ product.title }}</h1>
+    <p>{{ craft.smallChange.formatMoney(product.price) }}{% if product.sku %} <small>SKU {{ product.sku }}</small>{% endif %}</p>
+
+    {% include 'shop/_add-form' with { product: product } only %}
+
+    <p><a href="/shop">Back to the shop</a></p>
+{% endblock %}

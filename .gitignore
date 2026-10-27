@@ -1,0 +1,25 @@
+# Dependencies
+/vendor/
+/node_modules/
+composer.lock
+
+# Local environment and tooling
+.env
+.DS_Store
+.idea/
+.vscode/
+*.log
+.phpunit.result.cache
+/.phpstan-cache/
+/tests/_output/
+/cpresources/
+/tests/_support/_generated/
+/tests/_craft/storage/runtime/*
+/tests/_craft/storage/logs/*
+/tests/_craft/storage/config-deltas/
+!/tests/_craft/storage/runtime/.gitkeep
+!/tests/_craft/storage/logs/.gitkeep
+
+# Local-only working notes and tooling (never published)
+AGENTS.md
+.local/
