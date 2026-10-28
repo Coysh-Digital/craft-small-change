@@ -24,4 +24,5 @@ abstract class Table
     public const SHIPPING_METHODS = '{{%smallchange_shippingmethods}}';
     public const WEBHOOK_EVENTS = '{{%smallchange_webhookevents}}';
     public const STATE = '{{%smallchange_state}}';
+    public const SETTINGS = '{{%smallchange_settings}}';
 }

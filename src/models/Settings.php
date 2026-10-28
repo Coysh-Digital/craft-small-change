@@ -11,7 +11,8 @@ use craft\helpers\App;
 use craft\models\Site;
 
 /**
- * Plugin settings, stored in project config.
+ * Plugin settings, stored in project config, apart from the email sender and wording (DATABASE_SETTINGS), which
+ * are kept in the database so they can be changed in production.
  *
  * The three Stripe values are environment variable references, never keys, so
  * a secret cannot end up in project config or version control.
@@ -38,6 +39,12 @@ class Settings extends Model
     ];
 
     public const EMAIL_CONTENT_FIELDS = ['subject' => 255, 'heading' => 255, 'message' => 5000];
+
+    /**
+     * Settings each environment keeps for itself (see StoredSettings), so admins can change them where admin
+     * changes are disallowed. The config file still wins over them.
+     */
+    public const DATABASE_SETTINGS = ['emailFromName', 'emailFromAddress', 'emailReplyTo', 'adminEmail', 'emailContent'];
 
     public string $stripeSecretKey = '$STRIPE_SECRET_KEY';
     public string $stripePublishableKey = '$STRIPE_PUBLISHABLE_KEY';

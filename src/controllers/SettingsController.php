@@ -13,6 +13,7 @@ use coyshdigital\smallchange\services\Webhooks;
 use Craft;
 use craft\helpers\UrlHelper;
 use craft\web\Controller;
+use yii\web\ForbiddenHttpException;
 use yii\web\NotFoundHttpException;
 use yii\web\Response;
 
@@ -74,6 +75,19 @@ final class SettingsController extends Controller
     }
 
     /**
+     * The settings project config holds now, without anything that has moved to the database or is no longer a
+     * setting, so a save drops them from project config.
+     *
+     * @param array<string, mixed> $stored
+     * @param string[] $attributes
+     * @return array<string, mixed>
+     */
+    public static function projectConfigSettings(array $stored, array $attributes): array
+    {
+        return array_diff_key(array_intersect_key($stored, array_flip($attributes)), array_flip(Settings::DATABASE_SETTINGS));
+    }
+
+    /**
      * The value as the form may show it: an environment reference or an alias, never a literal key.
      */
     public static function referenceOnly(string $value): string
@@ -89,7 +103,8 @@ final class SettingsController extends Controller
             return false;
         }
 
-        // Viewing is open to admins even where changes are disallowed; every save below asks for more.
+        // Open to admins even where changes are disallowed: the email sender and wording can be saved there too.
+        // Every save of project config asks for more.
         $this->requireAdmin(false);
 
         return true;
@@ -176,13 +191,44 @@ final class SettingsController extends Controller
         return $this->redirectToPostedUrl();
     }
 
+    /**
+     * The email sender is saved to the database wherever an admin is; everything else goes to project config,
+     * and only where admin changes are allowed. Elsewhere those fields are disabled, and anything posted is ignored.
+     */
     public function actionSave(): ?Response
     {
         $this->requirePostRequest();
-        $this->requireAdmin();
 
         $plugin = Plugin::getInstance();
         $params = (array) $this->request->getBodyParam('settings', []);
+        $overrides = array_keys(Craft::$app->getConfig()->getConfigFromFile('small-change'));
+
+        /** @var Settings $settings */
+        $settings = $plugin->getSettings();
+
+        // The sender fields; the wording has its own screen. Checked before anything is saved, so a bad address
+        // doesn't leave half the form saved.
+        $databaseParams = array_map(
+            static fn(mixed $value): string => is_scalar($value) ? trim((string) $value) : '',
+            array_diff_key(
+                array_intersect_key($params, array_flip(Settings::DATABASE_SETTINGS)),
+                array_flip(array_merge($overrides, ['emailContent'])),
+            ),
+        );
+        $params = array_diff_key($params, array_flip(Settings::DATABASE_SETTINGS));
+        $settings->setAttributes($databaseParams, false);
+
+        if ($databaseParams !== [] && !$settings->validate(array_keys($databaseParams))) {
+            return $this->asModelFailure($settings, Craft::t('small-change', "Couldn't save settings."), 'settings');
+        }
+
+        if (!Craft::$app->getConfig()->getGeneral()->allowAdminChanges) {
+            $plugin->storedSettings->save($databaseParams);
+
+            return $this->asSuccess(Craft::t('small-change', 'Settings saved.'));
+        }
+
+        $this->requireAdmin();
 
         // One switch per email is posted as emails[key]; the model stores the ones that are off.
         if (is_array($params['emails'] ?? null)) {
@@ -195,8 +241,6 @@ final class SettingsController extends Controller
         // The API base is for a local mock and is set in the config file only; it never comes from the form.
         unset($params['emails'], $params['stripeApiBase']);
 
-        /** @var Settings $settings */
-        $settings = $plugin->getSettings();
         $oldCurrency = $settings->currency;
         $newCurrency = isset($params['currency']) ? strtoupper(trim((string) $params['currency'])) : $oldCurrency;
         $currencyError = $plugin->orders->currencyChangeError($oldCurrency, $newCurrency);
@@ -218,17 +262,17 @@ final class SettingsController extends Controller
         }
 
         // Settings the config file owns are not editable here, and neither are disabled fields: both keep what is stored.
-        $stored = (array) (Craft::$app->getProjectConfig()->get('plugins.' . $plugin->handle . '.settings') ?? []);
-        $stored = array_intersect_key($stored, array_flip($settings->attributes()));
-        $params = self::mergeSettings(
-            $stored,
-            $params,
-            array_keys(Craft::$app->getConfig()->getConfigFromFile('small-change')),
+        $stored = self::projectConfigSettings(
+            (array) (Craft::$app->getProjectConfig()->get('plugins.' . $plugin->handle . '.settings') ?? []),
+            $settings->attributes(),
         );
+        $params = self::mergeSettings($stored, $params, $overrides);
 
         if (!Craft::$app->getPlugins()->savePluginSettings($plugin, $params)) {
             return $this->asModelFailure($settings, Craft::t('small-change', "Couldn't save settings."), 'settings');
         }
+
+        $plugin->storedSettings->save($databaseParams);
 
         /** @var Settings $saved */
         $saved = $plugin->getSettings();
@@ -269,7 +313,8 @@ final class SettingsController extends Controller
             'overrideTemplate' => $plugin->emails->overrideTemplate($key),
             'enabled' => $settings->emailEnabled($key),
             'adminEmail' => $settings->adminEmail,
-            'readOnly' => !Craft::$app->getConfig()->getGeneral()->allowAdminChanges || in_array('emailContent', $overrides, true),
+            // The wording is kept in the database, so it can be changed even where admin changes are disallowed.
+            'readOnly' => in_array('emailContent', $overrides, true),
             'overridden' => in_array('emailContent', $overrides, true),
             'tokens' => Emails::TOKENS,
         ]);
@@ -278,13 +323,16 @@ final class SettingsController extends Controller
     public function actionSaveEmail(): ?Response
     {
         $this->requirePostRequest();
-        $this->requireAdmin();
 
         $plugin = Plugin::getInstance();
         $key = (string) $this->request->getRequiredBodyParam('key');
 
         if (!isset(Emails::definitions()[$key])) {
             throw new NotFoundHttpException('Email not found');
+        }
+
+        if (in_array('emailContent', array_keys(Craft::$app->getConfig()->getConfigFromFile('small-change')), true)) {
+            throw new ForbiddenHttpException('Email wording is set in config/small-change.php.');
         }
 
         /** @var Settings $settings */
@@ -297,17 +345,13 @@ final class SettingsController extends Controller
             unset($emailContent[$key]);
         }
 
-        $stored = (array) (Craft::$app->getProjectConfig()->get('plugins.' . $plugin->handle . '.settings') ?? []);
-        $stored = array_intersect_key($stored, array_flip($settings->attributes()));
-        $params = self::mergeSettings(
-            $stored,
-            ['emailContent' => $emailContent],
-            array_keys(Craft::$app->getConfig()->getConfigFromFile('small-change')),
-        );
+        $settings->emailContent = $emailContent;
 
-        if (!Craft::$app->getPlugins()->savePluginSettings($plugin, $params)) {
+        if (!$settings->validate(['emailContent'])) {
             return $this->asModelFailure($settings, Craft::t('small-change', "Couldn't save the email."), 'settings');
         }
+
+        $plugin->storedSettings->save(['emailContent' => $emailContent]);
 
         return $this->asSuccess(Craft::t('small-change', 'Email saved.'));
     }

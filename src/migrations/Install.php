@@ -41,15 +41,26 @@ class Install extends Migration
         Table::DISCOUNT_RESERVATIONS,
         Table::WEBHOOK_EVENTS,
         Table::STATE,
+        Table::SETTINGS,
+    ];
+
+    /**
+     * Tables a later migration added, which an install made before them won't have.
+     */
+    private const ADDED_LATER = [
+        Table::SETTINGS,
     ];
 
     public function safeUp(): bool
     {
         $db = Craft::$app->getDb();
-        $present = array_values(array_filter(self::TABLES, static fn(string $table): bool => $db->tableExists($table)));
+        $original = array_values(array_diff(self::TABLES, self::ADDED_LATER));
+        $present = array_values(array_filter($original, static fn(string $table): bool => $db->tableExists($table)));
 
         // A project-config sync can replay the install on a database that already has the tables.
-        if (count($present) === count(self::TABLES)) {
+        if (count($present) === count($original)) {
+            $this->createLaterTables();
+
             return true;
         }
 
@@ -61,6 +72,7 @@ class Install extends Migration
         $this->createTables();
         $this->createIndexes();
         $this->addForeignKeys();
+        $this->createLaterTables();
 
         return true;
     }
@@ -343,6 +355,22 @@ class Install extends Migration
             'dateUpdated' => $this->dateTime()->notNull(),
             'uid' => $this->uid(),
         ]);
+    }
+
+    /**
+     * Each one only if it is missing, so this also serves an install from before the table existed.
+     */
+    private function createLaterTables(): void
+    {
+        if (!$this->db->tableExists(Table::SETTINGS)) {
+            // Settings that belong to one environment, such as the email sender and wording, so production can change them.
+            $this->createTable(Table::SETTINGS, $this->withMeta([
+                'id' => $this->primaryKey(),
+                'name' => $this->string(100)->notNull(),
+                'value' => $this->text(),
+            ]));
+            $this->createIndex(null, Table::SETTINGS, ['name'], true);
+        }
     }
 
     private function createIndexes(): void

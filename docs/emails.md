@@ -47,8 +47,8 @@ Stripe's successful-payment emails in the Dashboard (Settings → Business → *
 Click an email in the table on the Emails tab (or its **Edit** link) to change its subject, heading and opening
 message. The preview underneath updates as you type. It uses the latest order that suits the email, or made-up
 details if there isn't one, and nothing is sent. **Preview** in the table opens the saved version in a new tab.
-Where admin changes aren't allowed, the link says **View** and the screen is read-only. It's also read-only when
-`emailContent` is set in `config/small-change.php`.
+You can do this in production too, even where admin changes aren't allowed. The screen is read-only, and the link
+says **View**, only when `emailContent` is set in `config/small-change.php`.
 
 Leave a field blank to keep the built-in wording. The receipt's subject field starts out with the `receiptSubject`
 setting, and a subject you save here wins. The message replaces the opening paragraphs only: the facts a donor
@@ -65,7 +65,9 @@ text with a blank line between paragraphs. These placeholders work in all three 
 
 The manage link isn't tied to an order, so only `{charityName}` and `{siteName}` have anything in them there.
 
-The text is stored in project config (`emailContent`), so it travels with your other settings.
+The text is stored in the database (`emailContent`), not project config, so each environment keeps its own wording
+and a deployment doesn't overwrite what was changed in production. The sender fields and admin address are kept the
+same way.
 
 ## Changing the look
 

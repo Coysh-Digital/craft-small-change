@@ -135,6 +135,15 @@ final class SettingsTest extends Unit
         $this->assertSame('hosted_page', $merged['checkoutMode']);
     }
 
+    public function testSavingProjectConfigDropsWhatMovedToTheDatabase(): void
+    {
+        $stored = ['currency' => 'EUR', 'emailFromName' => 'Old sender', 'emailContent' => ['receipt' => ['heading' => 'Hi']], 'retired' => true];
+
+        $kept = SettingsController::projectConfigSettings($stored, (new Settings())->attributes());
+
+        $this->assertSame(['currency' => 'EUR'], $kept, 'the sender and wording live in the database now, and a retired setting goes too');
+    }
+
     public function testTheTabBarSharedByTheSettingsAndTemplatesPages(): void
     {
         $onSettings = SettingsController::tabs(true, false);
