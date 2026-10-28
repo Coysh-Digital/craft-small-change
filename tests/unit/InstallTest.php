@@ -10,6 +10,7 @@ use coyshdigital\smallchange\elements\Order;
 use coyshdigital\smallchange\elements\Product;
 use coyshdigital\smallchange\migrations\Install;
 use coyshdigital\smallchange\migrations\m261016_120000_add_checkout_attempt;
+use coyshdigital\smallchange\migrations\m261028_120000_move_email_settings_to_db;
 use coyshdigital\smallchange\Plugin;
 use coyshdigital\smallchange\tests\Fixtures;
 use Craft;
@@ -76,6 +77,64 @@ final class InstallTest extends Unit
         $this->assertTrue($db->tableExists(Table::STATE));
     }
 
+    public function testAnInstallFromBeforeTheSettingsTableIsAReplayNotAHalfBuild(): void
+    {
+        $db = Craft::$app->getDb();
+        $db->createCommand()->dropTable(Table::SETTINGS)->execute();
+        $db->getSchema()->refresh();
+
+        try {
+            $this->assertTrue((new Install())->safeUp());
+            $db->getSchema()->refresh();
+            $this->assertTrue($db->tableExists(Table::SETTINGS), 'the replay adds the table a later version brought in');
+        } finally {
+            if (!$db->tableExists(Table::SETTINGS)) {
+                (new m261028_120000_move_email_settings_to_db())->safeUp();
+                $db->getSchema()->refresh();
+            }
+        }
+    }
+
+    public function testTheEmailSettingsMigrationCreatesTheTableAndRunsTwice(): void
+    {
+        $db = Craft::$app->getDb();
+        $migration = new m261028_120000_move_email_settings_to_db();
+        $db->createCommand()->dropTable(Table::SETTINGS)->execute();
+        $db->getSchema()->refresh();
+
+        try {
+            $this->assertTrue($migration->safeUp());
+            $db->getSchema()->refresh();
+            $this->assertTrue($db->tableExists(Table::SETTINGS));
+            $this->assertTrue($migration->safeUp(), 'running it again must change nothing');
+        } finally {
+            if (!$db->tableExists(Table::SETTINGS)) {
+                $migration->safeUp();
+            }
+
+            $db->getSchema()->refresh();
+        }
+    }
+
+    public function testTheEmailSettingsMigrationCopiesWhatIsSetAndNotYetInTheDatabase(): void
+    {
+        $stored = [
+            'currency' => 'GBP',
+            'emailFromName' => 'Small Church',
+            'emailFromAddress' => '',
+            'adminEmail' => 'office@example.test',
+            'emailContent' => ['receipt' => ['heading' => 'Thank you']],
+            'emailReplyTo' => 'replies@example.test',
+        ];
+
+        $this->assertSame([
+            'emailFromName' => 'Small Church',
+            'adminEmail' => 'office@example.test',
+            'emailContent' => ['receipt' => ['heading' => 'Thank you']],
+        ], m261028_120000_move_email_settings_to_db::valuesToCopy($stored, ['emailReplyTo']), 'a blank stays out, a row already there wins, and other settings stay in project config');
+        $this->assertSame([], m261028_120000_move_email_settings_to_db::valuesToCopy(['emailContent' => []], []));
+    }
+
     public function testTheCheckoutAttemptMigrationFillsTheGapAndRunsTwice(): void
     {
         $db = Craft::$app->getDb();
@@ -108,7 +167,7 @@ final class InstallTest extends Unit
         $db = Craft::$app->getDb();
         $tables = (new ReflectionClass(Table::class))->getConstants();
 
-        $this->assertCount(15, $tables);
+        $this->assertCount(16, $tables);
 
         foreach ($tables as $name => $table) {
             $this->assertTrue($db->tableExists($table), "{$name} ({$table}) was not created by the install migration");

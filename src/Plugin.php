@@ -23,6 +23,7 @@ use coyshdigital\smallchange\services\Privacy;
 use coyshdigital\smallchange\services\ProductTypes;
 use coyshdigital\smallchange\services\ShippingMethods;
 use coyshdigital\smallchange\services\State;
+use coyshdigital\smallchange\services\StoredSettings;
 use coyshdigital\smallchange\services\Stripe;
 use coyshdigital\smallchange\services\StripeProducts;
 use coyshdigital\smallchange\services\Subscriptions;
@@ -75,6 +76,7 @@ use yii\base\Event;
  * @property-read Subscriptions $subscriptions
  * @property-read StripeProducts $stripeProducts
  * @property-read State $state
+ * @property-read StoredSettings $storedSettings
  * @property-read Templates $templates
  */
 class Plugin extends BasePlugin
@@ -88,10 +90,12 @@ class Plugin extends BasePlugin
     public const PERMISSION_MANAGE_SHIPPING = 'smallChange-manageShipping';
     public const PERMISSION_ANONYMISE_CUSTOMERS = 'smallChange-anonymiseCustomers';
 
-    public string $schemaVersion = '1.0.1';
+    public string $schemaVersion = '1.0.2';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
     public bool $hasReadOnlyCpSettings = true;
+
+    private bool $storedSettingsApplied = false;
 
     /**
      * @return array<string, mixed>
@@ -116,6 +120,7 @@ class Plugin extends BasePlugin
                 'subscriptions' => Subscriptions::class,
                 'stripeProducts' => StripeProducts::class,
                 'state' => State::class,
+                'storedSettings' => StoredSettings::class,
                 'privacy' => Privacy::class,
                 'templates' => Templates::class,
             ],
@@ -236,6 +241,48 @@ class Plugin extends BasePlugin
         }
 
         parent::beforeUninstall();
+    }
+
+    public function getSettings(): ?Model
+    {
+        $settings = parent::getSettings();
+
+        if ($settings instanceof Settings && !$this->storedSettingsApplied && $this->isInstalled) {
+            $this->storedSettingsApplied = true;
+            $settings->setAttributes(self::storedSettingsToApply(
+                $this->storedSettings->all(),
+                array_keys(Craft::$app->getConfig()->getConfigFromFile($this->handle)),
+            ), false);
+        }
+
+        return $settings;
+    }
+
+    /**
+     * Craft sets the project config values while it builds the plugin, which would land on top of the database
+     * ones, so they are laid over again the next time the settings are read.
+     *
+     * @param array<string, mixed> $settings
+     */
+    public function setSettings(array $settings): void
+    {
+        // Skips the query while Craft is still building the plugin.
+        $this->storedSettingsApplied = true;
+        parent::setSettings($settings);
+        $this->storedSettingsApplied = false;
+    }
+
+    /**
+     * The database values to lay over project config: only the settings that live there, and none the config
+     * file sets, because the file wins.
+     *
+     * @param array<string, mixed> $stored
+     * @param string[] $overridden
+     * @return array<string, mixed>
+     */
+    public static function storedSettingsToApply(array $stored, array $overridden): array
+    {
+        return array_diff_key(array_intersect_key($stored, array_flip(Settings::DATABASE_SETTINGS)), array_flip($overridden));
     }
 
     protected function createSettingsModel(): ?Model

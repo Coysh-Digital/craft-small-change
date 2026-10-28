@@ -3,7 +3,8 @@
 
 {% set title = 'Settings'|t('small-change') %}
 {% set selectedSubnavItem = 'settings' %}
-{% set fullPageForm = not readOnly %}
+{# Always a form: the email sender can be saved even where admin changes are disallowed. #}
+{% set fullPageForm = true %}
 
 {% set crumbs = [
     { label: 'Small Change'|t('small-change'), url: url('small-change') },
@@ -20,11 +21,10 @@
 
 {% block content %}
     {% if readOnly %}
-        <p class="warning with-icon">{{ 'Administrative changes are disallowed in this environment, so these settings can be read but not changed. Change them where you develop the site and deploy the project config.'|t('small-change') }}</p>
-    {% else %}
-        {{ actionInput('small-change/settings/save') }}
-        {{ redirectInput('small-change/settings') }}
+        <p class="warning with-icon">{{ 'Administrative changes are disallowed in this environment, so most settings can be read but not changed. Change them where you develop the site and deploy the project config. The email sender, admin address and the wording of each email are kept for each environment, so you can change them here.'|t('small-change') }}</p>
     {% endif %}
+    {{ actionInput('small-change/settings/save') }}
+    {{ redirectInput('small-change/settings') }}
 
     <div id="general"{% if selectedTab != 'general' %} class="hidden"{% endif %}>
         {{ forms.textField({
@@ -196,7 +196,7 @@
                 value: settings.emailFromName,
                 placeholder: systemEmail.name,
                 errors: settings.getErrors('emailFromName'),
-                disabled: 'emailFromName' in overrides or readOnly,
+                disabled: 'emailFromName' in overrides,
                 warning: overridden(overrides, 'emailFromName'),
             }) }}
 
@@ -209,7 +209,7 @@
                 value: settings.emailFromAddress,
                 placeholder: systemEmail.email,
                 errors: settings.getErrors('emailFromAddress'),
-                disabled: 'emailFromAddress' in overrides or readOnly,
+                disabled: 'emailFromAddress' in overrides,
                 warning: overridden(overrides, 'emailFromAddress'),
             }) }}
 
@@ -222,7 +222,7 @@
                 value: settings.emailReplyTo,
                 placeholder: systemEmail.replyTo,
                 errors: settings.getErrors('emailReplyTo'),
-                disabled: 'emailReplyTo' in overrides or readOnly,
+                disabled: 'emailReplyTo' in overrides,
                 warning: overridden(overrides, 'emailReplyTo'),
             }) }}
 
@@ -234,7 +234,7 @@
                 type: 'email',
                 value: settings.adminEmail,
                 errors: settings.getErrors('adminEmail'),
-                disabled: 'adminEmail' in overrides or readOnly,
+                disabled: 'adminEmail' in overrides,
                 warning: overridden(overrides, 'adminEmail'),
             }) }}
 
@@ -275,7 +275,7 @@
                                 }) }}
                             </td>
                             <td class="nowrap">
-                                <a href="{{ url('small-change/settings/emails/' ~ key) }}">{{ (readOnly ? 'View' : 'Edit')|t('small-change') }}</a>
+                                <a href="{{ url('small-change/settings/emails/' ~ key) }}">{{ ('emailContent' in overrides ? 'View' : 'Edit')|t('small-change') }}</a>
                                 · <a href="{{ url('small-change/settings/emails/' ~ key ~ '/preview') }}" target="_blank" rel="noopener">{{ 'Preview'|t('small-change') }}</a>
                             </td>
                         </tr>

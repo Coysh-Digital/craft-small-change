@@ -1,10 +1,12 @@
 # Settings
 
-**Small Change → Settings** is for admins. You can change settings there only where `allowAdminChanges` is on;
-where it's off, the page is read-only. Settings are stored in project config. For the Stripe keys that means the
-environment variable references only, never the keys themselves. You can also set any setting in
-`config/small-change.php`, and the control panel then shows it as overridden. Saving the page leaves a setting
-alone when it's set in the config file or its field is locked.
+**Small Change → Settings** is for admins. Most settings are stored in project config, and you can change them
+only where `allowAdminChanges` is on; where it's off, they're read-only. For the Stripe keys that means the
+environment variable references only, never the keys themselves. The email sender, the admin address and the
+wording of each email are the exception: they're stored in the database, so each environment keeps its own and
+admins can change them in production too. You can also set any setting in `config/small-change.php`, and the
+control panel then shows it as overridden. Saving the page leaves a setting alone when it's set in the config file
+or its field is locked.
 
 The tabs are General, Stripe, Checkout, Emails, Gift Aid and Privacy. Where admin changes are allowed there's also
 **Templates**, the page installer described in [Your front-end templates](templates.md).
@@ -75,9 +77,14 @@ don't change it there once you've gone live.
 | --- | --- | --- |
 | `sendEmails` | on | The master switch. Off stops every email Small Change sends, including the link a donor can ask for to manage a recurring donation. Stripe's own emails are separate. |
 | `disabledEmails` | none | A list of email keys to switch off one by one, such as `receipt`. The Emails tab shows each email with its own switch, who gets it and when. The keys are in [Emails](emails.md). |
-| `emailFromName`, `emailFromAddress`, `emailReplyTo` | blank | Sender. Anything left blank uses Craft's own email settings (**Settings → Email**), and the tab shows what those are. A From name with no address is used with Craft's address. |
-| `adminEmail` | blank | Where the new-order, refund-failed, dispute and cancellation notices go. Leave it empty and none of those are sent. |
-| `emailContent` | none | Wording changed on each email's edit screen: a subject, heading and message per email key. Anything blank keeps the built-in wording. See [Emails](emails.md). |
+| `emailFromName`, `emailFromAddress`, `emailReplyTo` | blank | Sender. Anything left blank uses Craft's own email settings (**Settings → Email**), and the tab shows what those are. A From name with no address is used with Craft's address. Stored in the database. |
+| `adminEmail` | blank | Where the new-order, refund-failed, dispute and cancellation notices go. Leave it empty and none of those are sent. Stored in the database. |
+| `emailContent` | none | Wording changed on each email's edit screen: a subject, heading and message per email key. Anything blank keeps the built-in wording. Stored in the database. See [Emails](emails.md). |
+
+The settings stored in the database aren't deployed with project config. Pulling a production database down to
+develop against brings production's sender and wording with it. An upgrade from a version that kept them in project
+config copies them across when its migration runs, and the next save of the settings page removes them from
+project config.
 | `receiptSubject` | `Your receipt from {siteName}` | The receipt's subject when its edit screen has none saved. The edit screen starts from this value, and a subject saved there wins. The placeholders in [Emails](emails.md) work here too. |
 | `emailTemplatePath` | `_small-change/emails` | Where to put your own versions of the email templates. See [Emails](emails.md). |
 
