@@ -18,7 +18,7 @@
         "email": "support@coysh.digital",
         "issues": "https://github.com/Coysh-Digital/craft-small-change/issues",
         "source": "https://github.com/Coysh-Digital/craft-small-change",
-        "docs": "https://github.com/Coysh-Digital/craft-small-change/tree/main/docs"
+        "docs": "https://coysh.digital/plugins/craft-small-change/docs/"
     },
     "authors": [
         {
@@ -55,7 +55,7 @@
         "handle": "small-change",
         "developer": "Coysh Digital",
         "developerUrl": "https://coysh.digital",
-        "documentationUrl": "https://github.com/Coysh-Digital/craft-small-change/tree/main/docs",
+        "documentationUrl": "https://coysh.digital/plugins/craft-small-change/docs/",
         "changelogUrl": "https://raw.githubusercontent.com/Coysh-Digital/craft-small-change/main/CHANGELOG.md",
         "class": "coyshdigital\\smallchange\\Plugin"
     },
