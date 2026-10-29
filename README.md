@@ -2,7 +2,7 @@
 
 Small Change is a small shop and donations plugin for Craft CMS 5. We built it for charities and small organisations that need to take donations and sell a few things, but can't justify the cost of a fully featured Craft Commerce plugin. It will allow any site that has it installed to take one-off payments or recurring payments.
 
-## Full documenation
+## Full documentation
 
 The docs are over at [coysh.digital/plugins/craft-small-change](https://coysh.digital/plugins/craft-small-change/docs/). They cover installation, usage and troubleshooting. There are also good examples for templating in the docs.
 
@@ -22,7 +22,7 @@ php craft plugin/install small-change
 or
 
 ```bash
-ddev composer require "coysh-digital/craft-small-change:^1.0.0" -w && ddev craft plugin/install manager-connector
+ddev composer require "coyshdigital/craft-small-change:^1.0" -w && ddev craft plugin/install small-change
 ``` 
 
 Add your Stripe keys to `.env`:
