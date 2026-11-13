@@ -27,6 +27,13 @@ class Discount extends Model
     public ?int $percent = null;
     public ?int $amount = null;
     public ?int $minSubtotal = null;
+
+    /**
+     * Product element ids the code is limited to. Null means every product.
+     *
+     * @var int[]|null
+     */
+    public ?array $productIds = null;
     public ?int $maxUses = null;
     public int $uses = 0;
     public ?DateTime $dateFrom = null;
@@ -44,11 +51,29 @@ class Discount extends Model
     /**
      * The shape the Totals service takes.
      *
-     * @return array{type: string, percent: ?int, amount: ?int, minSubtotal: ?int}
+     * @return array{type: string, percent: ?int, amount: ?int, minSubtotal: ?int, productIds: ?int[]}
      */
     public function toSpec(): array
     {
-        return ['type' => $this->type, 'percent' => $this->percent, 'amount' => $this->amount, 'minSubtotal' => $this->minSubtotal];
+        return [
+            'type' => $this->type,
+            'percent' => $this->percent,
+            'amount' => $this->amount,
+            'minSubtotal' => $this->minSubtotal,
+            'productIds' => $this->productIds,
+        ];
+    }
+
+    /**
+     * Whether this code discounts the line: products only, and only the chosen ones when it is limited.
+     */
+    public function appliesTo(LineItem $item): bool
+    {
+        if ($item->getIsDonation()) {
+            return false;
+        }
+
+        return $this->productIds === null || in_array($item->purchasableId, $this->productIds, true);
     }
 
     public function describe(string $currency): string
@@ -75,6 +100,7 @@ class Discount extends Model
             [['percent'], 'integer', 'min' => 1, 'max' => 10000],
             [['amount'], 'required', 'when' => fn(): bool => $this->type === self::TYPE_FIXED],
             [['amount', 'minSubtotal'], 'integer', 'min' => 1, 'max' => Money::MAX_MINOR],
+            [['productIds'], 'each', 'rule' => ['integer', 'min' => 1]],
             [['maxUses'], 'integer', 'min' => 1],
             [['dateTo'], 'validateDates'],
         ];

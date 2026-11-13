@@ -131,9 +131,10 @@ trait Fixtures
         return $method;
     }
 
-    protected function makeDiscount(string $code = 'SAVE10', string $type = Discount::TYPE_PERCENT, int $value = 1000, ?int $maxUses = null, ?int $minSubtotal = null): Discount
+    protected function makeDiscount(string $code = 'SAVE10', string $type = Discount::TYPE_PERCENT, int $value = 1000, ?int $maxUses = null, ?int $minSubtotal = null, ?array $productIds = null): Discount
     {
         $discount = new Discount([
+            'productIds' => $productIds,
             'name' => $code,
             'code' => $code,
             'type' => $type,

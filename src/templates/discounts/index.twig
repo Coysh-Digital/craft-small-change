@@ -26,7 +26,7 @@
                     <tr data-id="{{ discount.id }}" data-name="{{ discount.name|e }}">
                         <th scope="row"><a href="{{ url('small-change/discounts/' ~ discount.id) }}">{{ discount.name }}</a></th>
                         <td><code>{{ discount.code }}</code></td>
-                        <td>{{ discount.describe(currency) }}{% if discount.minSubtotal %} <span class="light">· {{ 'over {amount}'|t('small-change', { amount: craft.smallChange.formatMoney(discount.minSubtotal, null, true) }) }}</span>{% endif %}</td>
+                        <td>{{ discount.describe(currency) }}{% if discount.minSubtotal %} <span class="light">· {{ 'over {amount}'|t('small-change', { amount: craft.smallChange.formatMoney(discount.minSubtotal, null, true) }) }}</span>{% endif %}{% if discount.productIds %} <span class="light">· {{ '{count, plural, =1{1 product} other{# products}}'|t('small-change', { count: discount.productIds|length }) }}</span>{% endif %}</td>
                         <td>{{ discount.uses }}{% if discount.maxUses %} / {{ discount.maxUses }}{% endif %}</td>
                         <td><span class="status {{ discount.enabled ? 'green' : 'disabled' }}"></span>{{ discount.enabled ? 'Enabled'|t('app') : 'Disabled'|t('app') }}</td>
                         <td class="thin"><a class="delete icon" title="{{ 'Delete'|t('app') }}" role="button"></a></td>

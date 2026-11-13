@@ -58,8 +58,20 @@
 
     <p class="light">{{ 'Discounts apply to products only. Donations are never discounted.'|t('small-change') }}</p>
 
+    {{ forms.elementSelectField({
+        label: 'Products'|t('small-change'),
+        instructions: 'Limit this code to particular products. Leave empty to apply it to every product.'|t('small-change'),
+        id: 'productIds', name: 'productIds',
+        elementType: 'coyshdigital\\smallchange\\elements\\Product',
+        elements: productElements,
+        sources: productSources,
+        criteria: { kind: ['physical', 'nonPhysical'] },
+        selectionLabel: 'Choose a product'|t('small-change'),
+        errors: discount.getErrors('productIds'),
+    }) }}
+
     {{ forms.textField({
-        label: 'Minimum spend on products ({currency})'|t('small-change', { currency: currency }),
+        label: 'Minimum spend on the products it applies to ({currency})'|t('small-change', { currency: currency }),
         instructions: 'Leave blank for no minimum.'|t('small-change'),
         id: 'minSubtotal', name: 'minSubtotal', value: minSubtotalValue, size: 8,
         errors: discount.getErrors('minSubtotal'),

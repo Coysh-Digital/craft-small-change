@@ -45,6 +45,11 @@ In **Small Change → Discount codes** you can set a percentage or a fixed amoun
 start and end dates and a maximum number of uses. Codes discount products only; donations are never discounted.
 When a code can't be used, the answer is deliberately vague, so nobody can probe for valid ones.
 
+A code can be limited to particular products by choosing them in the **Products** field. Leave it empty and the
+code applies to every product, as it always has. A limited code discounts only those products, the minimum spend
+counts only those products, and a fixed amount is never more than those products cost. If a basket has none of
+them the code is refused, and if the customer later removes them the code is dropped with a notice.
+
 A code with a usage limit is *reserved* while someone is paying and released if they abandon the payment, so
 two customers can't both get the last use. Stripe is shown the discount as a one-use coupon that is deleted
 afterwards.
