@@ -19,20 +19,21 @@ class Totals extends Component
 
     /**
      * @param LineItem[] $lineItems
-     * @param array{type: string, percent?: ?int, amount?: ?int, minSubtotal?: ?int}|null $discount `percent` is in basis points
+     * @param array{type: string, percent?: ?int, amount?: ?int, minSubtotal?: ?int, productIds?: ?int[]}|null $discount `percent` is in basis points; `productIds` limits the code to those products, and null or absent means every product
      */
     public function calculate(array $lineItems, ?array $discount = null, int $shippingAmount = 0): TotalsResult
     {
         $itemSubtotal = 0;
         $discountable = 0;
         $giftAidEligible = 0;
+        $productIds = $discount['productIds'] ?? null;
 
         foreach ($lineItems as $item) {
             $subtotal = $item->unitPrice * $item->qty;
             $itemSubtotal += $subtotal;
 
-            // Donations are never discounted.
-            if (!$item->getIsDonation()) {
+            // Donations are never discounted, and a limited code only reaches its own products.
+            if (!$item->getIsDonation() && ($productIds === null || in_array($item->purchasableId, $productIds, true))) {
                 $discountable += $subtotal;
             }
 
@@ -55,7 +56,7 @@ class Totals extends Component
     }
 
     /**
-     * @param array{type: string, percent?: ?int, amount?: ?int, minSubtotal?: ?int} $discount
+     * @param array{type: string, percent?: ?int, amount?: ?int, minSubtotal?: ?int, productIds?: ?int[]} $discount
      */
     private function discountFor(array $discount, int $discountable): int
     {

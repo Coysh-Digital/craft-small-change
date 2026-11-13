@@ -180,6 +180,8 @@ class Install extends Migration
             'percent' => $this->integer()->unsigned(),
             'amount' => $this->bigInteger(),
             'minSubtotal' => $this->bigInteger(),
+            // Product element ids the code is limited to. Null means every product.
+            'productIds' => $this->json(),
             'maxUses' => $this->integer()->unsigned(),
             'uses' => $this->integer()->unsigned()->notNull()->defaultValue(0),
             'dateFrom' => $this->dateTime(),

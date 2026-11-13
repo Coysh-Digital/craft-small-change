@@ -139,6 +139,55 @@ final class TotalsTest extends Unit
         $this->assertTrue($met->discountApplied);
     }
 
+    public function testADiscountWithoutProductIdsStillReachesEveryProduct(): void
+    {
+        $lines = [$this->product(1000, 1, 11), $this->product(3000, 1, 12)];
+
+        foreach ([[], ['productIds' => null]] as $extra) {
+            $result = $this->totals->calculate($lines, ['type' => Totals::DISCOUNT_PERCENT, 'percent' => 1000] + $extra);
+            $this->assertSame(400, $result->discountAmount);
+        }
+    }
+
+    public function testALimitedDiscountOnlyReachesItsProducts(): void
+    {
+        $lines = [$this->product(1000, 1, 11), $this->product(3000, 1, 12)];
+
+        $percent = $this->totals->calculate($lines, ['type' => Totals::DISCOUNT_PERCENT, 'percent' => 1000, 'productIds' => [11]]);
+        $this->assertSame(100, $percent->discountAmount, '10% of the chosen £10 product only');
+        $this->assertSame(3900, $percent->total);
+
+        $fixed = $this->totals->calculate($lines, ['type' => Totals::DISCOUNT_FIXED, 'amount' => 5000, 'productIds' => [11]]);
+        $this->assertSame(1000, $fixed->discountAmount, 'a fixed amount is capped at the chosen products');
+    }
+
+    public function testALimitedDiscountMeasuresTheMinimumOnItsProductsOnly(): void
+    {
+        $lines = [$this->product(1000, 1, 11), $this->product(5000, 1, 12)];
+        $discount = ['type' => Totals::DISCOUNT_FIXED, 'amount' => 200, 'minSubtotal' => 2000, 'productIds' => [11]];
+
+        $this->assertSame(0, $this->totals->calculate($lines, $discount)->discountAmount, 'the other product does not count');
+        $this->assertSame(200, $this->totals->calculate([$this->product(2000, 1, 11)], $discount)->discountAmount);
+    }
+
+    public function testALimitedDiscountThatMatchesNothingDoesNothing(): void
+    {
+        $result = $this->totals->calculate([$this->product(1000, 1, 12)], ['type' => Totals::DISCOUNT_PERCENT, 'percent' => 10000, 'productIds' => [11]]);
+
+        $this->assertSame(0, $result->discountAmount);
+        $this->assertFalse($result->discountApplied);
+    }
+
+    public function testListingADonationDoesNotMakeItDiscountable(): void
+    {
+        $donation = $this->donation(5000);
+        $donation->purchasableId = 11;
+
+        $result = $this->totals->calculate([$donation], ['type' => Totals::DISCOUNT_PERCENT, 'percent' => 10000, 'productIds' => [11]]);
+
+        $this->assertSame(0, $result->discountAmount);
+    }
+
     public function testUnknownDiscountTypeDoesNothing(): void
     {
         $this->assertSame(0, $this->totals->calculate([$this->product(1000)], ['type' => 'bogus', 'amount' => 500])->discountAmount);
@@ -165,9 +214,10 @@ final class TotalsTest extends Unit
         ]);
     }
 
-    private function product(int $price, int $qty = 1): LineItem
+    private function product(int $price, int $qty = 1, ?int $purchasableId = null): LineItem
     {
         return new LineItem([
+            'purchasableId' => $purchasableId,
             'kind' => LineItem::KIND_PHYSICAL,
             'description' => 'Thing',
             'unitPrice' => $price,

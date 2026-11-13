@@ -15,6 +15,7 @@ use craft\db\ActiveRecord;
  * @property int|null $percent
  * @property int|null $amount
  * @property int|null $minSubtotal
+ * @property int[]|null $productIds
  * @property int|null $maxUses
  * @property int $uses
  * @property string|null $dateFrom

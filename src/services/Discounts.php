@@ -13,6 +13,7 @@ use coyshdigital\smallchange\records\DiscountReservationRecord;
 use Craft;
 use craft\base\Component;
 use craft\helpers\Db;
+use craft\helpers\Json;
 use DateTime;
 use DateTimeZone;
 use yii\db\Expression;
@@ -71,6 +72,8 @@ class Discounts extends Component
         $record->percent = $discount->type === Discount::TYPE_PERCENT ? $discount->percent : null;
         $record->amount = $discount->type === Discount::TYPE_FIXED ? $discount->amount : null;
         $record->minSubtotal = $discount->minSubtotal;
+        // An empty list would otherwise match nothing, so it is stored as "every product".
+        $record->productIds = $discount->productIds ? array_values(array_unique(array_map('intval', $discount->productIds))) : null;
         $record->maxUses = $discount->maxUses;
         $record->dateFrom = $discount->dateFrom ? Db::prepareDateForDb($discount->dateFrom) : null;
         $record->dateTo = $discount->dateTo ? Db::prepareDateForDb($discount->dateTo) : null;
@@ -103,7 +106,7 @@ class Discounts extends Component
             return $invalid;
         }
 
-        $discountable = $this->discountableSubtotal($order);
+        $discountable = $this->discountableSubtotal($order, $discount);
 
         if ($discountable <= 0) {
             return Craft::t('small-change', 'That code does not apply to anything in your basket.');
@@ -210,14 +213,14 @@ class Discounts extends Component
     }
 
     /**
-     * Only products are discounted; donations never are.
+     * Only products are discounted; donations never are. Given a code, only the products it covers count.
      */
-    public function discountableSubtotal(Order $order): int
+    public function discountableSubtotal(Order $order, ?Discount $discount = null): int
     {
         $subtotal = 0;
 
         foreach ($order->getLineItems() as $item) {
-            if (!$item->getIsDonation()) {
+            if ($discount ? $discount->appliesTo($item) : !$item->getIsDonation()) {
                 $subtotal += $item->unitPrice * $item->qty;
             }
         }
@@ -227,6 +230,15 @@ class Discounts extends Component
 
     private function toModel(DiscountRecord $record): Discount
     {
-        return new Discount($record->getAttributes(['id', 'name', 'code', 'type', 'percent', 'amount', 'minSubtotal', 'maxUses', 'uses', 'dateFrom', 'dateTo', 'enabled']));
+        $attributes = $record->getAttributes(['id', 'name', 'code', 'type', 'percent', 'amount', 'minSubtotal', 'productIds', 'maxUses', 'uses', 'dateFrom', 'dateTo', 'enabled']);
+
+        // The JSON column comes back as an array or, on some drivers, as text.
+        $ids = $attributes['productIds'];
+        if (is_string($ids)) {
+            $ids = Json::decodeIfJson($ids);
+        }
+        $attributes['productIds'] = is_array($ids) && $ids !== [] ? array_map('intval', array_values($ids)) : null;
+
+        return new Discount($attributes);
     }
 }

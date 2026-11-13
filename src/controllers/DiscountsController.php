@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace coyshdigital\smallchange\controllers;
 
+use coyshdigital\smallchange\elements\Product;
 use coyshdigital\smallchange\helpers\Money;
 use coyshdigital\smallchange\models\Discount;
+use coyshdigital\smallchange\models\ProductType;
 use coyshdigital\smallchange\Plugin;
 use Craft;
 use craft\helpers\DateTimeHelper;
@@ -51,9 +53,24 @@ final class DiscountsController extends Controller
 
         $currency = Plugin::getInstance()->getSettings()->currency;
 
+        // Donations are never discounted, so only shop product types are offered in the picker.
+        $productSources = ['*'];
+        foreach (Plugin::getInstance()->productTypes->getAllProductTypes() as $type) {
+            if ($type->kind !== ProductType::KIND_DONATION) {
+                $productSources[] = 'type:' . $type->uid;
+            }
+        }
+
+        // The picker shows the chosen products as they are now; ones that have since been deleted just drop out.
+        $productElements = $discount->productIds
+            ? Product::find()->id($discount->productIds)->status(null)->all()
+            : [];
+
         return $this->renderTemplate('small-change/discounts/_edit', [
             'discount' => $discount,
             'currency' => $currency,
+            'productElements' => $productElements,
+            'productSources' => $productSources,
             'title' => $discount->id ? $discount->name : Craft::t('small-change', 'New discount code'),
             // Form values in the units people type: percent, and money in the store currency.
             'percentValue' => $discount->percent !== null ? rtrim(rtrim(number_format($discount->percent / 100, 2, '.', ''), '0'), '.') : '',
@@ -108,6 +125,13 @@ final class DiscountsController extends Controller
                 $discount->$attribute = $minor;
             }
         }
+
+        // The element select posts a list of ids, or an empty string when nothing is chosen, which means every product.
+        $productIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) $this->request->getBodyParam('productIds')),
+            static fn(int $id): bool => $id > 0,
+        )));
+        $discount->productIds = $productIds ?: null;
 
         $maxUses = trim((string) $this->request->getBodyParam('maxUses'));
         $discount->maxUses = $maxUses === '' ? null : (ctype_digit($maxUses) ? (int) $maxUses : 0);

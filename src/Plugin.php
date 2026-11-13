@@ -90,7 +90,7 @@ class Plugin extends BasePlugin
     public const PERMISSION_MANAGE_SHIPPING = 'smallChange-manageShipping';
     public const PERMISSION_ANONYMISE_CUSTOMERS = 'smallChange-anonymiseCustomers';
 
-    public string $schemaVersion = '1.0.2';
+    public string $schemaVersion = '1.0.3';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
     public bool $hasReadOnlyCpSettings = true;

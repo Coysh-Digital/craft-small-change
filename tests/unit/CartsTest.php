@@ -417,6 +417,29 @@ final class CartsTest extends Unit
         $this->assertNull($this->reload($cart)->discountCode);
     }
 
+    public function testALimitedCodeOnlyDiscountsItsProductAndGoesWhenThatProductDoes(): void
+    {
+        $carts = Plugin::getInstance()->carts;
+        $chosen = $this->makeShopProduct(2000, 'physical', 'Chosen');
+        $other = $this->makeShopProduct(3000, 'physical', 'Other');
+        $this->makeDiscount('CHOSEN', Discount::TYPE_PERCENT, 1000, null, null, [(int) $chosen->id]);
+        $cart = $this->makeCart([[$chosen, 1], [$other, 1]]);
+
+        $this->assertNull($carts->applyDiscount($cart, 'chosen'));
+        $carts->save($cart);
+
+        $saved = $this->reload($cart);
+        $this->assertSame(200, $saved->discountAmount, '10% of the chosen £20 product, not the £30 one');
+        $this->assertSame(4800, $saved->total);
+
+        $carts->removeProduct($cart, (int) $chosen->id);
+        $notices = $carts->save($cart);
+
+        $this->assertArrayHasKey('discount', $notices);
+        $this->assertNull($this->reload($cart)->discountCode);
+        $this->assertSame(3000, $this->reload($cart)->total);
+    }
+
     public function testABadCodeChangesNothing(): void
     {
         $carts = Plugin::getInstance()->carts;

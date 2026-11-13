@@ -221,6 +221,68 @@ final class DiscountsTest extends Unit
         $this->assertSame('TEMP', $reloaded->discountCode, 'the code used is still on the order as text');
     }
 
+    // Limiting a code to products ----------------------------------------------
+
+    public function testProductIdsSurviveASaveAndLoad(): void
+    {
+        $service = Plugin::getInstance()->discounts;
+        $discount = $this->makeDiscount('LIMITED', Discount::TYPE_PERCENT, 1000, null, null, [5, 9, 5]);
+
+        $this->assertSame([5, 9], $service->getDiscountById((int) $discount->id)?->productIds);
+    }
+
+    public function testNoProductsMeansEveryProduct(): void
+    {
+        $service = Plugin::getInstance()->discounts;
+
+        $none = $this->makeDiscount('NONE');
+        $this->assertNull($service->getDiscountById((int) $none->id)?->productIds);
+
+        $empty = $this->makeDiscount('EMPTY', Discount::TYPE_PERCENT, 1000, null, null, []);
+        $this->assertNull($service->getDiscountById((int) $empty->id)?->productIds, 'an empty list is not "nothing"');
+    }
+
+    public function testProductIdsMustBePositiveWholeNumbers(): void
+    {
+        foreach ([['x'], [0], [-3], [1.5]] as $ids) {
+            $discount = new Discount(['name' => 'X', 'code' => 'X1', 'type' => Discount::TYPE_PERCENT, 'percent' => 1000, 'productIds' => $ids]);
+            $this->assertFalse($discount->validate(['productIds']), json_encode($ids) ?: '');
+        }
+    }
+
+    public function testALimitedCodeNeedsOneOfItsProductsInTheBasket(): void
+    {
+        $chosen = $this->makeShopProduct(2000, 'physical', 'Chosen');
+        $other = $this->makeShopProduct(2000, 'physical', 'Other');
+        $discount = $this->makeDiscount('ONLYONE', Discount::TYPE_PERCENT, 1000, null, null, [(int) $chosen->id]);
+        $service = Plugin::getInstance()->discounts;
+
+        $without = $this->makeCart([[$other, 1]]);
+        $this->assertStringContainsString('does not apply', (string) $service->problemWith($discount, $without));
+
+        $with = $this->makeCart([[$other, 1], [$chosen, 1]]);
+        $this->assertNull($service->problemWith($discount, $with));
+    }
+
+    public function testACodeWithoutAProductListStillAppliesToAnyProduct(): void
+    {
+        $discount = $this->makeDiscount('ANYTHING');
+        $cart = $this->makeCart([[$this->makeShopProduct(2000), 1]]);
+
+        $this->assertNull(Plugin::getInstance()->discounts->problemWith($discount, $cart));
+    }
+
+    public function testTheMinimumOnALimitedCodeCountsItsProductsOnly(): void
+    {
+        $chosen = $this->makeShopProduct(1000, 'physical', 'Chosen');
+        $other = $this->makeShopProduct(5000, 'physical', 'Other');
+        $discount = $this->makeDiscount('MINCHOSEN', Discount::TYPE_FIXED, 200, null, 2000, [(int) $chosen->id]);
+
+        $cart = $this->makeCart([[$chosen, 1], [$other, 1]]);
+
+        $this->assertStringContainsString('at least £20', (string) Plugin::getInstance()->discounts->problemWith($discount, $cart));
+    }
+
     public function testDescribe(): void
     {
         $this->assertSame('12.5%', (new Discount(['type' => 'percent', 'percent' => 1250]))->describe('GBP'));
