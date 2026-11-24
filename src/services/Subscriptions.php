@@ -119,7 +119,9 @@ class Subscriptions extends Component
         $record->productId = is_string($productId) && ctype_digit($productId) ? (int) $productId : $record->productId;
         $record->status = (string) $stripeSub->status;
         $record->interval = (string) ($price->recurring->interval ?? $record->interval ?? Subscription::INTERVAL_MONTH);
-        $record->amount = (int) (($price->unit_amount ?? 0) * ($item->quantity ?? 1));
+        // A discount code takes the same amount off every payment of a plan, so what it really costs each time is the
+        // price less that. The price on Stripe's subscription is the list price, before the code.
+        $record->amount = max(0, (int) (($price->unit_amount ?? 0) * ($item->quantity ?? 1)) - $this->discountPerPayment($record, $order));
         $record->currency = strtoupper((string) ($price->currency ?? $stripeSub->currency ?? 'gbp'));
         // Stripe's Basil API version and later put the period on the item; older versions had it on the subscription.
         $periodEnd = $item->current_period_end ?? $stripeSub->current_period_end ?? null;
@@ -168,6 +170,17 @@ class Subscriptions extends Component
         }
 
         return $subscription;
+    }
+
+    /**
+     * The amount a discount code takes off each payment of this subscription: the discount on the order that
+     * started it. Zero when there was none, and for a recurring donation, which a code never applies to.
+     */
+    private function discountPerPayment(SubscriptionRecord $record, ?Order $order): int
+    {
+        $order ??= $record->orderId ? Order::find()->id($record->orderId)->one() : null;
+
+        return $order !== null && $order->getIsRecurring() && !$order->getHasDonation() ? max(0, (int) $order->discountAmount) : 0;
     }
 
     /**

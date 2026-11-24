@@ -1,5 +1,9 @@
 # Release notes for Small Change
 
+## 1.2.1
+
+- A subscription bought with a discount code is now recorded at what it costs each payment, not the list price. A 50% code on a £50 a month plan shows £25.00 on the subscription screen and in the emails that quote its amount, including the *Payment plan complete* email.
+
 ## 1.2.0
 
 - Subscription products. A non-physical product can be billed every month or every year, and can end by itself after
