@@ -439,6 +439,44 @@ final class SubscriptionProductsTest extends Unit
         $this->assertSame([], $this->stopCalls());
     }
 
+    // What a discounted plan costs ---------------------------------------------
+
+    public function testADiscountedPlanIsRecordedAtWhatItActuallyCostsEachTime(): void
+    {
+        $this->makeDiscount('HALF', Discount::TYPE_PERCENT, 5000);
+        [$order, $subId] = $this->started($this->plan(3), 'HALF');
+
+        $this->assertSame(2500, $this->local($subId)->amount, 'not the £50 list price');
+        $this->assertSame(2500, $order->totalPaid);
+
+        $this->renew($subId);
+        $this->assertSame(2500, $this->local($subId)->amount);
+
+        Plugin::getInstance()->subscriptions->reconcile($this->local($subId));
+        $this->assertSame(2500, $this->local($subId)->amount, 'asking Stripe again does not bring the list price back');
+        $this->assertSame([2500, 2500], array_map(static fn($p): int => $p->amount, Plugin::getInstance()->payments->getPaymentsByOrderId((int) $order->id)));
+    }
+
+    public function testAPlanWithoutADiscountKeepsItsListPrice(): void
+    {
+        [, $subId] = $this->started($this->plan(3));
+
+        $this->assertSame(5000, $this->local($subId)->amount);
+    }
+
+    public function testThePlanCompleteEmailQuotesWhatWasPaidNotTheListPrice(): void
+    {
+        $this->makeDiscount('HALF', Discount::TYPE_PERCENT, 5000);
+        [$order, $subId] = $this->started($this->plan(2), 'HALF');
+        $this->renew($subId);
+
+        $sub = $this->local($subId);
+        $message = Plugin::getInstance()->emails->compose(Emails::KEY_SUBSCRIPTION_COMPLETE, $order, ['amount' => $sub->amount, 'interval' => 'month', 'payments' => 2]);
+
+        $this->assertStringContainsString('£25.00', $message['html']);
+        $this->assertStringNotContainsString('£50.00', $message['html']);
+    }
+
     // The end of a plan ------------------------------------------------------
 
     public function testThePlanEndsAfterItsLastPaymentAndSaysSo(): void

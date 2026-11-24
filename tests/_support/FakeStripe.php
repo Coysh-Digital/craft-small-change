@@ -79,6 +79,8 @@ class FakeStripe extends Stripe
         }
 
         $recurring = $params['line_items'][0]['price_data']['recurring']['interval'] ?? null;
+        // The price on a subscription is the list price; a coupon comes off each invoice, not off the price.
+        $listTotal = $total;
 
         // Like Stripe, take a fixed-amount coupon off the total.
         foreach ($params['discounts'] ?? [] as $discount) {
@@ -97,6 +99,7 @@ class FakeStripe extends Stripe
             'subscription_data' => $params['subscription_data'] ?? null,
             'ui_mode' => $params['ui_mode'] ?? 'hosted_page',
             'amount_total' => $total,
+            'amount_list' => $listTotal,
             'currency' => $params['line_items'][0]['price_data']['currency'],
             'client_reference_id' => $params['client_reference_id'] ?? null,
             'client_secret' => $hosted ? null : $id . '_secret_abc',
@@ -306,10 +309,12 @@ class FakeStripe extends Stripe
             'canceled_at' => null,
             'ended_at' => null,
             'metadata' => $session['subscription_data']['metadata'] ?? [],
+            // What the coupon takes off every invoice (a "forever" coupon), kept off the price like Stripe does.
+            'discount_amount' => (int) ($session['amount_list'] ?? $session['amount_total']) - (int) $session['amount_total'],
             'items' => ['data' => [[
                 'quantity' => 1,
                 'current_period_end' => strtotime('+1 ' . $session['recurring_interval']),
-                'price' => ['unit_amount' => (int) $session['amount_total'], 'currency' => strtolower((string) $session['currency']), 'recurring' => ['interval' => $session['recurring_interval']]],
+                'price' => ['unit_amount' => (int) ($session['amount_list'] ?? $session['amount_total']), 'currency' => strtolower((string) $session['currency']), 'recurring' => ['interval' => $session['recurring_interval']]],
             ]]],
             'latest_invoice' => null,
         ];
@@ -342,7 +347,7 @@ class FakeStripe extends Stripe
     private function newInvoice(string $subId, string $reason, bool $paid = true): array
     {
         $sub = $this->subscriptions[$subId];
-        $amount = (int) $sub['items']['data'][0]['price']['unit_amount'];
+        $amount = (int) $sub['items']['data'][0]['price']['unit_amount'] - (int) ($sub['discount_amount'] ?? 0);
         $invoiceId = 'in_test_' . ++$this->counter;
         $intentId = 'pi_test_' . ++$this->counter;
 
