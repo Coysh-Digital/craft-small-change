@@ -23,6 +23,7 @@ use craft\db\ActiveRecord;
  * @property string|null $canceledAt
  * @property string|null $endedAt
  * @property bool $giftAidDeclared
+ * @property int|null $maxPayments
  * @property string|null $lastStripeEventAt
  * @property string|null $lastFailureAt
  * @property string $dateCreated

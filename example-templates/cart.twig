@@ -25,9 +25,9 @@
                     {% for line in cart.lineItems %}
                         <tr>
                             <th scope="row">{{ line.description }}{% if line.kind == 'donation' %} <small>(donation)</small>{% endif %}</th>
-                            <td>{{ craft.smallChange.formatMoney(line.unitPrice, cart.currency) }}</td>
+                            <td>{{ craft.smallChange.formatMoney(line.unitPrice, cart.currency) }}{% if line.isSubscription %} <small>{{ line.subscriptionTerms }}</small>{% endif %}</td>
                             <td>
-                                {% if line.kind == 'donation' %}
+                                {% if line.kind == 'donation' or line.isSubscription %}
                                     1
                                 {% else %}
                                     <input type="number" name="quantities[{{ line.purchasableId }}]" value="{{ line.qty }}" min="0" max="999" aria-label="Quantity of {{ line.description }}">

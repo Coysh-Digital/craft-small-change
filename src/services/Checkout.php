@@ -8,6 +8,7 @@ use coyshdigital\smallchange\elements\Order;
 use coyshdigital\smallchange\elements\Product;
 use coyshdigital\smallchange\events\BuildCheckoutSessionEvent;
 use coyshdigital\smallchange\exceptions\CheckoutException;
+use coyshdigital\smallchange\models\LineItem;
 use coyshdigital\smallchange\models\Settings;
 use coyshdigital\smallchange\Plugin;
 use Craft;
@@ -94,7 +95,9 @@ class Checkout extends Component
             $product = $line->purchasableId ? Product::find()->id($line->purchasableId)->one() : null;
 
             if (!$product instanceof Product || !$line->recurringInterval) {
-                throw new CheckoutException(Craft::t('small-change', 'That recurring donation is not available.'));
+                throw new CheckoutException($line->getIsDonation()
+                    ? Craft::t('small-change', 'That recurring donation is not available.')
+                    : Craft::t('small-change', 'That subscription is not available.'));
             }
 
             try {
@@ -114,7 +117,8 @@ class Checkout extends Component
                     'id' => $couponId,
                     'amount_off' => $order->discountAmount,
                     'currency' => strtolower($order->currency),
-                    'duration' => 'once',
+                    // A subscription's code takes its share off every payment, not just the first.
+                    'duration' => $order->getIsRecurring() ? 'forever' : 'once',
                     'max_redemptions' => 1,
                     'name' => mb_substr('Discount ' . $order->discountCode, 0, 40),
                 ], 'coupon-' . $couponId);
@@ -201,7 +205,7 @@ class Checkout extends Component
             // Stripe shows the subscription's metadata on every invoice (parent.subscription_details.metadata), so the Gift Aid answer travels with each payment.
             $line = $order->getLineItems()[0];
             $params['subscription_data'] = [
-                'metadata' => $metadata + ['smallChangeProductId' => (string) $line->purchasableId] + $plugin->giftAid->metadata($order),
+                'metadata' => $metadata + ['smallChangeProductId' => (string) $line->purchasableId] + $this->paymentsMetadata($line) + $plugin->giftAid->metadata($order),
                 'description' => $this->description($order),
             ];
         } else {
@@ -248,6 +252,18 @@ class Checkout extends Component
 
         // Listeners may add metadata or tweak presentation, never the money or the mode.
         return array_merge($event->params, $protected);
+    }
+
+    /**
+     * How many payments the plan takes, for the webhook that ends it. Absent when it runs until cancelled.
+     *
+     * @return array<string, string>
+     */
+    private function paymentsMetadata(LineItem $line): array
+    {
+        $payments = $line->snapshot['payments'] ?? null;
+
+        return $line->getIsSubscription() && is_numeric($payments) && (int) $payments > 0 ? ['smallChangePayments' => (string) (int) $payments] : [];
     }
 
     /**

@@ -15,7 +15,7 @@
         {% for product in products %}
             <li>
                 <h2>{% if product.url %}<a href="{{ product.url }}">{{ product.title }}</a>{% else %}{{ product.title }}{% endif %}</h2>
-                <p>{{ craft.smallChange.formatMoney(product.price) }}</p>
+                <p>{{ craft.smallChange.formatMoney(product.price) }}{% if product.isSubscription %} {{ product.subscriptionTerms }}{% endif %}</p>
                 {% include 'shop/_add-form' with { product: product } only %}
             </li>
         {% else %}

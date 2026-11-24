@@ -1,11 +1,15 @@
 {# The add-to-basket form for one product. Include it anywhere with {% include 'shop/_add-form' with { product: product } only %}.
    Optional: buyNow: true sends the buyer on to checkout instead of the basket, which suits one product on a page of
-   its own; label: the button text. #}
+   its own; label: the button text. A subscription is bought once, so it has no quantity box. #}
 <form method="post" action="" accept-charset="UTF-8">
     {% include '_small-change/csrf' %}
     {{ actionInput('small-change/cart/add') }}
     {{ redirectInput((buyNow ?? false) ? 'checkout' : 'cart') }}
     {{ hiddenInput('productId', product.id) }}
-    <label>Quantity <input type="number" name="qty" value="1" min="1" max="999"></label>
+    {% if product.isSubscription %}
+        {{ hiddenInput('qty', 1) }}
+    {% else %}
+        <label>Quantity <input type="number" name="qty" value="1" min="1" max="999"></label>
+    {% endif %}
     <button type="submit">{{ label ?? 'Add to basket' }}</button>
 </form>

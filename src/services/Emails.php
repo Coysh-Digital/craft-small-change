@@ -42,6 +42,7 @@ class Emails extends Component
     public const KEY_SUBSCRIPTION_PAYMENT_FAILED = 'subscriptionPaymentFailed';
     public const KEY_SUBSCRIPTION_ACTION_REQUIRED = 'subscriptionActionRequired';
     public const KEY_SUBSCRIPTION_CANCELLED = 'subscriptionCancelled';
+    public const KEY_SUBSCRIPTION_COMPLETE = 'subscriptionComplete';
     public const KEY_ADMIN_SUBSCRIPTION_CANCELLED = 'adminSubscriptionCancelled';
     public const KEY_PORTAL_LINK = 'portalLink';
 
@@ -58,6 +59,7 @@ class Emails extends Component
         self::KEY_SUBSCRIPTION_PAYMENT_FAILED => 'subscription-payment-failed',
         self::KEY_SUBSCRIPTION_ACTION_REQUIRED => 'subscription-action-required',
         self::KEY_SUBSCRIPTION_CANCELLED => 'subscription-cancelled',
+        self::KEY_SUBSCRIPTION_COMPLETE => 'subscription-complete',
         self::KEY_ADMIN_SUBSCRIPTION_CANCELLED => 'admin-subscription-cancelled',
     ];
 
@@ -73,6 +75,7 @@ class Emails extends Component
         self::KEY_SUBSCRIPTION_PAYMENT_FAILED,
         self::KEY_SUBSCRIPTION_ACTION_REQUIRED,
         self::KEY_SUBSCRIPTION_CANCELLED,
+        self::KEY_SUBSCRIPTION_COMPLETE,
         self::KEY_ADMIN_SUBSCRIPTION_CANCELLED,
     ];
 
@@ -113,6 +116,12 @@ class Emails extends Component
                 'to' => self::TO_DONOR,
                 'when' => Craft::t('small-change', 'When a recurring donation is cancelled, by the donor, by you or by Stripe.'),
                 'template' => 'subscription-cancelled',
+            ],
+            self::KEY_SUBSCRIPTION_COMPLETE => [
+                'label' => Craft::t('small-change', 'Payment plan complete'),
+                'to' => self::TO_DONOR,
+                'when' => Craft::t('small-change', 'When a subscription with a set number of payments takes its last one and ends by itself.'),
+                'template' => 'subscription-complete',
             ],
             self::KEY_PORTAL_LINK => [
                 'label' => Craft::t('small-change', 'Manage link'),
@@ -380,6 +389,7 @@ class Emails extends Component
             'amount' => $order->total,
             'invoiceUrl' => 'https://invoice.stripe.com/',
             'reason' => Craft::t('small-change', 'An example reason from Stripe'),
+            'payments' => 10,
         ];
         $email = $this->compose($key, $order, $context, null, $content);
 
@@ -583,10 +593,19 @@ class Emails extends Component
             ]),
             self::KEY_ADMIN_REFUND_FAILED => Craft::t('small-change', 'A refund failed on order {number}', ['number' => $order->number]),
             self::KEY_ADMIN_DISPUTE => Craft::t('small-change', 'A payment was disputed on order {number}', ['number' => $order->number]),
-            self::KEY_ADMIN_SUBSCRIPTION_CANCELLED => Craft::t('small-change', 'A recurring donation was cancelled on order {number}', ['number' => $order->number]),
-            self::KEY_SUBSCRIPTION_PAYMENT_FAILED => Craft::t('small-change', "We couldn't take your recurring donation to {siteName}", ['siteName' => $siteName]),
-            self::KEY_SUBSCRIPTION_ACTION_REQUIRED => Craft::t('small-change', 'Please confirm your recurring donation to {siteName}', ['siteName' => $siteName]),
-            self::KEY_SUBSCRIPTION_CANCELLED => Craft::t('small-change', 'Your recurring donation to {siteName} has ended', ['siteName' => $siteName]),
+            self::KEY_ADMIN_SUBSCRIPTION_CANCELLED => $order->getHasDonation()
+                ? Craft::t('small-change', 'A recurring donation was cancelled on order {number}', ['number' => $order->number])
+                : Craft::t('small-change', 'A subscription was cancelled on order {number}', ['number' => $order->number]),
+            self::KEY_SUBSCRIPTION_PAYMENT_FAILED => $order->getHasDonation()
+                ? Craft::t('small-change', "We couldn't take your recurring donation to {siteName}", ['siteName' => $siteName])
+                : Craft::t('small-change', "We couldn't take your payment to {siteName}", ['siteName' => $siteName]),
+            self::KEY_SUBSCRIPTION_ACTION_REQUIRED => $order->getHasDonation()
+                ? Craft::t('small-change', 'Please confirm your recurring donation to {siteName}', ['siteName' => $siteName])
+                : Craft::t('small-change', 'Please confirm your payment to {siteName}', ['siteName' => $siteName]),
+            self::KEY_SUBSCRIPTION_CANCELLED => $order->getHasDonation()
+                ? Craft::t('small-change', 'Your recurring donation to {siteName} has ended', ['siteName' => $siteName])
+                : Craft::t('small-change', 'Your subscription to {siteName} has ended', ['siteName' => $siteName]),
+            self::KEY_SUBSCRIPTION_COMPLETE => Craft::t('small-change', 'Your payment plan with {siteName} is complete', ['siteName' => $siteName]),
             default => Craft::t('small-change', "We couldn't take your payment to {siteName}", ['siteName' => $siteName]),
         };
     }

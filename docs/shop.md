@@ -9,6 +9,7 @@ need them, Craft Commerce is the right tool.
 Under **Small Change → Product types**, create a type of the *Physical product (delivered)* kind, which asks for
 a delivery address, or the *Non-physical product (no delivery)* kind for things like tickets and memberships,
 which never does. A product has a title, a price, a SKU and whatever custom fields you add to the type's layout.
+A non-physical product can also be sold as a [subscription](subscriptions.md), paid monthly or yearly.
 SKUs are unique across all products, and optional unless you turn on **SKU required** for the type. Product types
 and their layouts live in project config.
 

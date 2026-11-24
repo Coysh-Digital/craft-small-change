@@ -112,6 +112,15 @@ class Payments extends Component
     }
 
     /**
+     * How many payments of a subscription Stripe has taken. A payment that was refunded later still counts as
+     * taken: a plan that has run its course is complete whatever happened to the money afterwards.
+     */
+    public function countSucceededBySubscription(int $subscriptionId): int
+    {
+        return (int) PaymentRecord::find()->where(['subscriptionId' => $subscriptionId, 'status' => Payment::STATUS_SUCCEEDED])->count();
+    }
+
+    /**
      * @return Payment[]
      */
     public function getPaymentsByOrderId(int $orderId): array

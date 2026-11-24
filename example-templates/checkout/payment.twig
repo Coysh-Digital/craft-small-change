@@ -28,7 +28,7 @@
 
         <ul>
             {% for line in order.lineItems %}
-                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}: {{ craft.smallChange.formatMoney(line.subtotal, order.currency) }}</li>
+                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}: {{ craft.smallChange.formatMoney(line.subtotal, order.currency) }}{% if line.isSubscription %} {{ line.subscriptionTerms }}{% endif %}</li>
             {% endfor %}
             {% if order.discountAmount %}<li>Discount ({{ order.discountCode }}): &minus;{{ craft.smallChange.formatMoney(order.discountAmount, order.currency) }}</li>{% endif %}
             {% if order.shippingAmount %}<li>Delivery ({{ order.shippingMethodName }}): {{ craft.smallChange.formatMoney(order.shippingAmount, order.currency) }}</li>{% endif %}

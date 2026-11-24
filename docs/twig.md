@@ -12,7 +12,10 @@ Everything is on `craft.smallChange`.
 `products()` is an ordinary Craft element query. Extra parameters: `type` (a product type handle),
 `typeId`, `kind` (`donation`, `physical`, `nonPhysical`) and `sku`. A product has `title`, `price`, `sku`,
 `type`, and for donations `suggestedAmounts`, `minimumAmount` (null when unset), `effectiveMinimum`,
-`allowCustomAmount`, `allowRecurring` and `allowedIntervals`, plus any custom fields on its layout.
+`allowCustomAmount`, `allowRecurring` and `allowedIntervals`, plus any custom fields on its layout. A product sold
+as a [subscription](subscriptions.md) has `isSubscription`, `subscriptionInterval` (`month` or `year`),
+`subscriptionPayments` (null when it runs until cancelled) and `subscriptionTerms`, such as "a month, for 10
+payments". A basket line has `isSubscription` and `subscriptionTerms` too.
 
 ## Orders
 

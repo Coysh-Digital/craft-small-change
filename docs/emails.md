@@ -16,12 +16,13 @@ is the email's template name, which the tab shows under each label. You'll need 
 | Payment failed (`payment-failed`) | Donor | A payment method that clears slowly, such as a bank debit, failed after checkout. |
 | Recurring payment failed (`subscription-payment-failed`) | Donor | Stripe couldn't take a payment of a recurring donation. Links to Stripe's invoice page. |
 | Recurring payment needs confirming (`subscription-action-required`) | Donor | The donor's bank wants them to confirm a recurring payment. Links to Stripe's invoice page. |
-| Recurring donation ended (`subscription-cancelled`) | Donor | A recurring donation was cancelled, by the donor, by you or by Stripe. |
+| Recurring donation ended (`subscription-cancelled`) | Donor | A recurring donation or subscription was cancelled, by the donor, by you or by Stripe. |
+| Payment plan complete (`subscription-complete`) | Donor | A [subscription](subscriptions.md) with a set number of payments took its last one and ended by itself. |
 | Manage link (`portal-link`) | Donor | The donor asked for a link to manage a recurring donation. |
 | New order or donation (`admin-new-order`) | `adminEmail` | An order is paid or a donation comes in. Later payments of a recurring donation don't send it. |
 | Refund failed (`admin-refund-failed`) | `adminEmail` | Stripe couldn't complete a refund. |
 | Dispute opened (`admin-dispute`) | `adminEmail` | A donor disputed a payment with their bank. |
-| Recurring donation ended (`admin-subscription-cancelled`) | `adminEmail` | The same cancellation, for you. |
+| Recurring donation ended (`admin-subscription-cancelled`) | `adminEmail` | The same cancellation, for you. A plan that ended after its last payment doesn't send it. |
 
 A receipt belongs to one particular payment. A recurring donor gets one receipt for each payment, and a repeated
 job or delivery never sends the same receipt twice. **Resend receipt** on an order sends a deliberate extra copy.
@@ -34,7 +35,7 @@ instead. **Resend receipt** is hidden on orders while receipts are off.
 
 Each email also has its own switch there, stored as `disabledEmails`. That list uses the email keys, which aren't
 the template names: `receipt`, `paymentFailed`, `subscriptionPaymentFailed`, `subscriptionActionRequired`,
-`subscriptionCancelled`, `portalLink`, `adminNewOrder`, `adminRefundFailed`, `adminDispute` and
+`subscriptionCancelled`, `subscriptionComplete`, `portalLink`, `adminNewOrder`, `adminRefundFailed`, `adminDispute` and
 `adminSubscriptionCancelled`. The staff emails need an admin address; leave it empty and they aren't sent.
 
 An email that's off when something happens is skipped for good. Switching it back on doesn't send the ones you missed.

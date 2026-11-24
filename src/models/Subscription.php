@@ -40,6 +40,11 @@ class Subscription extends Model
     public ?DateTime $canceledAt = null;
     public ?DateTime $endedAt = null;
     public bool $giftAidDeclared = false;
+
+    /**
+     * The number of payments after which the subscription ends by itself, or null if it runs until cancelled.
+     */
+    public ?int $maxPayments = null;
     public ?DateTime $lastStripeEventAt = null;
     public ?DateTime $lastFailureAt = null;
     public ?DateTime $dateCreated = null;

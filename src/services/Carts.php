@@ -86,6 +86,17 @@ class Carts extends Component
             return Craft::t('small-change', 'Your basket is full.');
         }
 
+        // Stripe starts a subscription from one price, so it can't share a basket with anything else.
+        $others = array_filter($lines, static fn(LineItem $line): bool => $line->purchasableId !== $product->id);
+
+        if ($product->getIsSubscription() && $others) {
+            return Craft::t('small-change', '{item} has to be bought on its own. Check out, or empty your basket, first.', ['item' => $product->getDescription()]);
+        }
+
+        if (!$product->getIsSubscription() && array_filter($lines, static fn(LineItem $line): bool => $line->getIsSubscription())) {
+            return Craft::t('small-change', 'Your basket has a subscription in it, which has to be bought on its own. Check out, or empty your basket, first.');
+        }
+
         if ($product->getIsDonation()) {
             [$amount, $error] = $plugin->orders->checkDonationAmount($product, $amountInput);
 
@@ -101,8 +112,9 @@ class Carts extends Component
                 return Craft::t('small-change', 'That item is not available.');
             }
 
-            $quantity = max(1, $quantity);
-            $total = ($existing->qty ?? 0) + $quantity;
+            // A subscription is one plan, however many times the button is pressed.
+            $quantity = $product->getIsSubscription() ? 1 : max(1, $quantity);
+            $total = $product->getIsSubscription() ? 1 : ($existing->qty ?? 0) + $quantity;
 
             if ($total > LineItem::MAX_QUANTITY) {
                 return Craft::t('small-change', "You can't order more than {max} of one item.", ['max' => LineItem::MAX_QUANTITY]);
@@ -111,6 +123,7 @@ class Carts extends Component
             $line = $existing ?? $this->newLine($product);
             $line->unitPrice = $product->price;
             $line->qty = $total;
+            $this->applySubscription($line, $product);
         }
 
         $this->begin($cart);
@@ -144,7 +157,8 @@ class Carts extends Component
                     continue;
                 }
 
-                $line->qty = min($quantity, LineItem::MAX_QUANTITY);
+                // A subscription can be taken out of the basket, but there is never more than one of it.
+                $line->qty = $line->getIsSubscription() ? 1 : min($quantity, LineItem::MAX_QUANTITY);
             }
 
             $lines[] = $line;
@@ -355,6 +369,19 @@ class Carts extends Component
             'isGiftAidEligible' => $product->getIsDonation(),
             'snapshot' => ['productId' => $product->id, 'title' => $product->title, 'type' => $product->getType()->handle],
         ]);
+    }
+
+    /**
+     * Copies how a subscription product bills onto its line, so the plan the customer saw is the plan they pay for.
+     */
+    private function applySubscription(LineItem $line, Product $product): void
+    {
+        if (!$product->getIsSubscription()) {
+            return;
+        }
+
+        $line->recurringInterval = $product->subscriptionInterval;
+        $line->snapshot = array_merge($line->snapshot ?? [], ['payments' => $product->subscriptionPayments]);
     }
 
     /**

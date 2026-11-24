@@ -78,6 +78,8 @@ class ProductQuery extends ElementQuery
             'smallchange_products.allowCustomAmount',
             'smallchange_products.allowRecurring',
             'smallchange_products.recurringIntervals',
+            'smallchange_products.subscriptionInterval',
+            'smallchange_products.subscriptionPayments',
         ]);
 
         if ($this->typeId !== null) {
