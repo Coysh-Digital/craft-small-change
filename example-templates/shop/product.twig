@@ -4,7 +4,7 @@
 
 {% block content %}
     <h1>{{ product.title }}</h1>
-    <p>{{ craft.smallChange.formatMoney(product.price) }}{% if product.sku %} <small>SKU {{ product.sku }}</small>{% endif %}</p>
+    <p>{{ craft.smallChange.formatMoney(product.price) }}{% if product.isSubscription %} {{ product.subscriptionTerms }}{% endif %}{% if product.sku %} <small>SKU {{ product.sku }}</small>{% endif %}</p>
 
     {% include 'shop/_add-form' with { product: product } only %}
 

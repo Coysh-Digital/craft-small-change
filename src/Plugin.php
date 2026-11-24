@@ -9,6 +9,7 @@ use coyshdigital\smallchange\elements\Product;
 use coyshdigital\smallchange\fieldlayoutelements\DonationSettingsField;
 use coyshdigital\smallchange\fieldlayoutelements\ProductPriceField;
 use coyshdigital\smallchange\fieldlayoutelements\ProductSkuField;
+use coyshdigital\smallchange\fieldlayoutelements\ProductSubscriptionField;
 use coyshdigital\smallchange\fields\Products;
 use coyshdigital\smallchange\models\Settings;
 use coyshdigital\smallchange\services\Carts;
@@ -90,7 +91,7 @@ class Plugin extends BasePlugin
     public const PERMISSION_MANAGE_SHIPPING = 'smallChange-manageShipping';
     public const PERMISSION_ANONYMISE_CUSTOMERS = 'smallChange-anonymiseCustomers';
 
-    public string $schemaVersion = '1.0.3';
+    public string $schemaVersion = '1.0.4';
     public bool $hasCpSection = true;
     public bool $hasCpSettings = true;
     public bool $hasReadOnlyCpSettings = true;
@@ -461,6 +462,7 @@ class Plugin extends BasePlugin
                 $event->fields[] = DonationSettingsField::class;
                 $event->fields[] = ProductPriceField::class;
                 $event->fields[] = ProductSkuField::class;
+                $event->fields[] = ProductSubscriptionField::class;
             },
         );
     }

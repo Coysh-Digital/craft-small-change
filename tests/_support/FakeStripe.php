@@ -38,6 +38,9 @@ class FakeStripe extends Stripe
     public array $idempotency = [];
 
     public bool $failCreate = false;
+
+    /** Makes updateSubscription fail the way a dropped connection does. */
+    public bool $failSubscriptionUpdate = false;
     private int $counter = 0;
 
     public function mode(): ?string
@@ -401,6 +404,11 @@ class FakeStripe extends Stripe
     public function updateSubscription(string $id, array $params): StripeObject
     {
         $this->calls[] = ['method' => 'updateSubscription', 'args' => [$id, $params]];
+
+        if ($this->failSubscriptionUpdate) {
+            throw new \Stripe\Exception\ApiConnectionException('network down');
+        }
+
         $this->subscriptions[$id] = $params + $this->subscriptions[$id];
 
         if (!empty($params['cancel_at_period_end'])) {

@@ -12,10 +12,10 @@
         <p>Your reference is <strong>{{ order.number }}</strong>. A receipt is on its way to {{ order.email }}.</p>
         <ul>
             {% for line in order.lineItems %}
-                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}</li>
+                <li>{{ line.description }}{% if line.qty > 1 %} &times; {{ line.qty }}{% endif %}{% if line.isSubscription %} ({{ craft.smallChange.formatMoney(line.unitPrice, order.currency) }} {{ line.subscriptionTerms }}){% endif %}</li>
             {% endfor %}
         </ul>
-        <p>You paid {{ craft.smallChange.formatMoney(order.totalPaid, order.currency) }}.</p>
+        <p>You paid {{ craft.smallChange.formatMoney(order.totalPaid, order.currency) }}.{% if order.isRecurring %} The same amount is taken each time until the plan ends.{% endif %}</p>
         {% if order.requiresShipping %}<p>We'll post it to {{ order.shippingAddress.addressLine1 }}, {{ order.shippingAddress.postalCode }}.</p>{% endif %}
     {% elseif order.paymentStatus == 'processing' %}
         <h1>Your payment is processing</h1>

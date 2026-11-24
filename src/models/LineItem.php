@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace coyshdigital\smallchange\models;
 
+use coyshdigital\smallchange\helpers\SubscriptionTerms;
 use craft\base\Model;
 
 class LineItem extends Model
@@ -40,6 +41,24 @@ class LineItem extends Model
     public function getIsDonation(): bool
     {
         return $this->kind === self::KIND_DONATION;
+    }
+
+    /**
+     * A fixed-price line that is bought as a subscription. A recurring donation is not one: it is a donation.
+     */
+    public function getIsSubscription(): bool
+    {
+        return !$this->getIsDonation() && $this->recurringInterval !== null;
+    }
+
+    /**
+     * "a month, for 10 payments", or null when the line is not a subscription.
+     */
+    public function getSubscriptionTerms(): ?string
+    {
+        $payments = $this->snapshot['payments'] ?? null;
+
+        return $this->getIsSubscription() ? SubscriptionTerms::describe($this->recurringInterval, is_numeric($payments) ? (int) $payments : null) : null;
     }
 
     public function getIsPhysical(): bool

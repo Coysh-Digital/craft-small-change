@@ -7,6 +7,7 @@ namespace coyshdigital\smallchange\elements;
 use coyshdigital\smallchange\base\PurchasableInterface;
 use coyshdigital\smallchange\elements\db\ProductQuery;
 use coyshdigital\smallchange\helpers\Money;
+use coyshdigital\smallchange\helpers\SubscriptionTerms;
 use coyshdigital\smallchange\models\LineItem;
 use coyshdigital\smallchange\models\ProductType;
 use coyshdigital\smallchange\Plugin;
@@ -43,6 +44,21 @@ class Product extends Element implements PurchasableInterface
      * @var string[]|null
      */
     public ?array $recurringIntervals = null;
+
+    /**
+     * 'month' or 'year' when a fixed-price product is bought as a subscription; null for a one-off sale.
+     */
+    public ?string $subscriptionInterval = null;
+
+    /**
+     * How many payments a subscription takes before it ends by itself; null means it runs until cancelled.
+     */
+    public ?int $subscriptionPayments = null;
+
+    /**
+     * The longest plan a product can offer. A cap, so a typo can't promise a hundred years of payments.
+     */
+    public const MAX_SUBSCRIPTION_PAYMENTS = 120;
 
     public static function displayName(): string
     {
@@ -366,6 +382,24 @@ class Product extends Element implements PurchasableInterface
             $this->recurringIntervals = array_values(array_intersect(array_map('strval', (array) $values['recurringIntervals']), ['month', 'year'])) ?: null;
         }
 
+        if (array_key_exists('subscriptionInterval', $values)) {
+            $interval = trim((string) $values['subscriptionInterval']);
+            $this->subscriptionInterval = in_array($interval, ['month', 'year'], true) ? $interval : null;
+        }
+
+        if (array_key_exists('subscriptionPayments', $values)) {
+            $payments = trim((string) $values['subscriptionPayments']);
+
+            if ($payments === '') {
+                $this->subscriptionPayments = null;
+            } elseif (ctype_digit($payments)) {
+                $this->subscriptionPayments = (int) $payments;
+            } else {
+                $this->subscriptionPayments = null;
+                $this->addError('subscriptionPayments', Craft::t('small-change', 'Enter the number of payments as a whole number, or leave it blank.'));
+            }
+        }
+
         if (array_key_exists('priceInput', $values)) {
             $input = trim((string) $values['priceInput']);
             $this->price = $input === '' ? null : Money::parse($input, $currency);
@@ -375,7 +409,7 @@ class Product extends Element implements PurchasableInterface
             }
         }
 
-        unset($values['donationMinimum'], $values['donationSuggested'], $values['allowCustomAmount'], $values['allowRecurring'], $values['recurringIntervals'], $values['priceInput']);
+        unset($values['donationMinimum'], $values['donationSuggested'], $values['allowCustomAmount'], $values['allowRecurring'], $values['recurringIntervals'], $values['subscriptionInterval'], $values['subscriptionPayments'], $values['priceInput']);
 
         parent::setAttributesFromRequest($values);
     }
@@ -410,6 +444,7 @@ class Product extends Element implements PurchasableInterface
         $rules[] = [['minimumAmount'], 'integer', 'min' => 1, 'max' => Money::MAX_MINOR];
         $rules[] = [['suggestedAmounts'], 'validateSuggestedAmounts'];
         $rules[] = [['price'], 'validatePrice', 'skipOnEmpty' => false];
+        $rules[] = [['subscriptionInterval'], 'validateSubscription', 'skipOnEmpty' => false];
         $rules[] = [['sku'], 'string', 'max' => 100];
         $rules[] = [['sku'], 'validateSku', 'skipOnEmpty' => false];
 
@@ -434,6 +469,31 @@ class Product extends Element implements PurchasableInterface
                 'currency' => Plugin::getInstance()->getSettings()->currency,
                 'max' => Money::format(Money::MAX_MINOR, Plugin::getInstance()->getSettings()->currency),
             ]));
+        }
+    }
+
+    /**
+     * A subscription is a fixed price taken on a schedule. It needs a product with no delivery, and a plan length
+     * only means something when there is a schedule.
+     */
+    public function validateSubscription(): void
+    {
+        if ($this->typeId === null) {
+            return;
+        }
+
+        $kind = $this->getType()->kind;
+
+        if ($this->subscriptionInterval !== null && $kind !== ProductType::KIND_NON_PHYSICAL) {
+            $this->addError('subscriptionInterval', Craft::t('small-change', 'Only a product with no delivery can be sold as a subscription.'));
+        }
+
+        if ($this->subscriptionPayments !== null) {
+            if ($this->subscriptionInterval === null) {
+                $this->addError('subscriptionPayments', Craft::t('small-change', 'Choose how often it is billed to set a number of payments.'));
+            } elseif ($this->subscriptionPayments < 1 || $this->subscriptionPayments > self::MAX_SUBSCRIPTION_PAYMENTS) {
+                $this->addError('subscriptionPayments', Craft::t('small-change', 'The number of payments must be between 1 and {max}.', ['max' => self::MAX_SUBSCRIPTION_PAYMENTS]));
+            }
         }
     }
 
@@ -510,6 +570,8 @@ class Product extends Element implements PurchasableInterface
             $record->allowCustomAmount = $this->allowCustomAmount;
             $record->allowRecurring = $this->allowRecurring;
             $record->recurringIntervals = $this->recurringIntervals;
+            $record->subscriptionInterval = $this->subscriptionInterval;
+            $record->subscriptionPayments = $this->subscriptionInterval !== null ? $this->subscriptionPayments : null;
             $record->save(false);
         }
 
@@ -548,5 +610,21 @@ class Product extends Element implements PurchasableInterface
     public function getIsDonation(): bool
     {
         return $this->getType()->kind === ProductType::KIND_DONATION;
+    }
+
+    /**
+     * "a month, for 10 payments", or null when the product is sold once.
+     */
+    public function getSubscriptionTerms(): ?string
+    {
+        return $this->getIsSubscription() ? SubscriptionTerms::describe($this->subscriptionInterval, $this->subscriptionPayments) : null;
+    }
+
+    /**
+     * Whether buying this takes a payment on a schedule rather than once. A recurring donation is a donation, not this.
+     */
+    public function getIsSubscription(): bool
+    {
+        return $this->subscriptionInterval !== null && $this->getType()->kind === ProductType::KIND_NON_PHYSICAL;
     }
 }

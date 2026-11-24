@@ -12,7 +12,8 @@ If you're new, read these in order:
 4. [Settings](settings.md): every setting and what it does.
 5. [Donations](donations.md) and [Recurring donations](recurring-donations.md).
 6. [Gift Aid](gift-aid.md): what the plugin does, and what it leaves alone on purpose.
-7. [Selling products](shop.md): products, delivery, discount codes and checkout fields.
+7. [Selling products](shop.md): products, delivery, discount codes and checkout fields, and
+   [subscription products](subscriptions.md) that are paid over time.
 8. [Webhooks](webhooks.md): how Stripe tells your site about payments, and how to connect it.
 9. [Emails](emails.md): receipts and notices, changing their wording, and restyling them.
 10. [Caching and Blitz](caching.md): keeping baskets and forms working behind a static cache.
@@ -23,7 +24,7 @@ If you're new, read these in order:
 
 ## What it does and does not do
 
-Small Change takes one-off and monthly or yearly donations, with Gift Aid as an option. It also has a basket for physical and non-physical products, flat-rate delivery, discount codes, refunds and disputes, receipts, a self-service link for recurring donors, and erasure of personal data.
+Small Change takes one-off and monthly or yearly donations, with Gift Aid as an option. It also has a basket for physical and non-physical products, subscription products that are paid monthly or yearly, flat-rate delivery, discount codes, refunds and disputes, receipts, a self-service link for recurring donors, and erasure of personal data.
 
 It doesn't do tax or VAT, stock, product variants, more than one currency, any gateway but Stripe,
 carrier-calculated shipping, customer accounts of its own (a signed-in Craft user can list their own orders and

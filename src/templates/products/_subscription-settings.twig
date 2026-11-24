@@ -1,0 +1,28 @@
+{% import '_includes/forms.twig' as forms %}
+
+{{ forms.selectField({
+    label: 'Billing'|t('small-change'),
+    instructions: 'One-off takes a single payment. Monthly and yearly make this a subscription: Stripe takes the price each time, automatically.'|t('small-change'),
+    id: 'subscription-interval',
+    name: 'subscriptionInterval',
+    options: [
+        { value: '', label: 'One-off payment'|t('small-change') },
+        { value: 'month', label: 'Every month'|t('small-change') },
+        { value: 'year', label: 'Every year'|t('small-change') },
+    ],
+    value: product.subscriptionInterval ?? '',
+    disabled: static,
+    errors: product.getErrors('subscriptionInterval'),
+}) }}
+
+{{ forms.textField({
+    label: 'Number of payments'|t('small-change'),
+    instructions: 'The subscription ends by itself after this many payments have been taken. Leave blank to keep going until it is cancelled. Only used when billed monthly or yearly.'|t('small-change'),
+    id: 'subscription-payments',
+    name: 'subscriptionPayments',
+    value: product.subscriptionPayments,
+    size: 5,
+    inputmode: 'numeric',
+    disabled: static,
+    errors: product.getErrors('subscriptionPayments'),
+}) }}

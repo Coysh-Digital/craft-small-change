@@ -147,6 +147,10 @@ class Install extends Migration
             'allowCustomAmount' => $this->boolean()->notNull()->defaultValue(true),
             'allowRecurring' => $this->boolean()->notNull()->defaultValue(false),
             'recurringIntervals' => $this->json(),
+            // A fixed-price product that is bought as a subscription: 'month' or 'year', null for a one-off sale.
+            'subscriptionInterval' => $this->string(5),
+            // How many payments the subscription takes before it ends by itself. Null means until cancelled.
+            'subscriptionPayments' => $this->integer(),
             'dateCreated' => $this->dateTime()->notNull(),
             'dateUpdated' => $this->dateTime()->notNull(),
             'uid' => $this->uid(),
@@ -263,6 +267,8 @@ class Install extends Migration
             'canceledAt' => $this->dateTime(),
             'endedAt' => $this->dateTime(),
             'giftAidDeclared' => $this->boolean()->notNull()->defaultValue(false),
+            // Payments this subscription takes before it ends by itself; null means it runs until cancelled.
+            'maxPayments' => $this->integer(),
             // Webhooks arrive out of order; handlers skip events older than this.
             'lastStripeEventAt' => $this->dateTime(),
             'lastFailureAt' => $this->dateTime(),

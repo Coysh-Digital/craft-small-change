@@ -40,6 +40,7 @@ use craft\helpers\StringHelper;
 use craft\models\FieldLayout;
 use craft\web\Application as WebApplication;
 use DateTime;
+use Stripe\Exception\ApiErrorException;
 use Stripe\StripeObject;
 use yii\base\Exception;
 use yii\db\Query;
@@ -242,13 +243,18 @@ class Orders extends Component
                 $item->unitPrice = $product->price;
                 $item->description = $product->getDescription();
                 $item->sku = $product->getSku();
+
+                $this->syncSubscriptionTerms($item, $product, $notices);
             }
 
-            $item->qty = max(1, min(LineItem::MAX_QUANTITY, $item->qty));
+            $item->qty = $item->getIsSubscription() ? 1 : max(1, min(LineItem::MAX_QUANTITY, $item->qty));
             $lines[] = $item;
         }
 
         $order->setLineItems($lines);
+
+        // An order is recurring when anything in it bills on a schedule: a recurring donation or a subscription.
+        $order->kind = array_filter($lines, static fn(LineItem $line): bool => $line->recurringInterval !== null) ? Order::KIND_RECURRING : Order::KIND_ONE_OFF;
 
         $this->chooseShippingMethod($order);
 
@@ -272,6 +278,34 @@ class Orders extends Component
         $plugin->giftAid->apply($order, $order->giftAidDeclared === true, $totals);
 
         return $notices;
+    }
+
+    /**
+     * Keeps a fixed-price line's billing in step with its product, and tells the customer when the terms they
+     * were shown have changed, as it does for a price.
+     *
+     * @param array<string, string> $notices
+     */
+    private function syncSubscriptionTerms(LineItem $item, Product $product, array &$notices): void
+    {
+        $payments = $product->getIsSubscription() ? $product->subscriptionPayments : null;
+        $interval = $product->getIsSubscription() ? $product->subscriptionInterval : null;
+        $before = [$item->recurringInterval, $item->snapshot['payments'] ?? null];
+
+        $item->recurringInterval = $interval;
+        $snapshot = $item->snapshot ?? [];
+
+        if ($interval !== null) {
+            $snapshot['payments'] = $payments;
+        } else {
+            unset($snapshot['payments']);
+        }
+
+        $item->snapshot = $snapshot ?: null;
+
+        if ($before !== [$interval, $payments] && !isset($notices['items'])) {
+            $notices['items'] = Craft::t('small-change', 'How {item} is billed has changed.', ['item' => $product->getDescription()]);
+        }
     }
 
     /**
@@ -339,6 +373,10 @@ class Orders extends Component
 
         if ($order->email === null || $order->email === '' || !filter_var($order->email, FILTER_VALIDATE_EMAIL)) {
             $order->addError('email', Craft::t('small-change', 'Enter a valid email address so we can send your receipt.'));
+        }
+
+        if (array_filter($order->getLineItems(), static fn(LineItem $line): bool => $line->getIsSubscription()) && count($order->getLineItems()) > 1) {
+            $order->addError('items', Craft::t('small-change', 'A subscription has to be bought on its own.'));
         }
 
         if ($order->getRequiresShipping()) {
@@ -958,6 +996,13 @@ class Orders extends Component
 
         if ($subscription) {
             $order->subscriptionId = $subscription->id;
+
+            // Only a one-payment plan is complete after its first payment. The invoice webhook that follows tries again if this fails.
+            try {
+                $plugin->subscriptions->endWhenComplete($subscription, $order);
+            } catch (ApiErrorException | Exception $e) {
+                Craft::warning('Could not end the plan for order ' . $order->number . ': ' . $e->getMessage(), __METHOD__);
+            }
         }
 
         if ($payment->amount !== $order->total) {

@@ -1,9 +1,9 @@
 {% extends 'small-change/emails/_layout' %}
 
 {% block body %}
-    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: "We couldn't take your donation this time" }}</h1>
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: (order.hasDonation ? "We couldn't take your donation this time" : "We couldn't take your payment this time") }}</h1>
     {% if content.message %}{{ content.message }}{% else %}
-    <p>Your {{ context.interval == 'year' ? 'yearly' : 'monthly' }} donation of {{ craft.smallChange.formatMoney(context.amount|default(order.total), order.currency) }} to {{ settings.charityName ?: siteName }} couldn't be taken, so nothing has been charged. Thank you for giving.</p>
+    <p>Your {{ context.interval == 'year' ? 'yearly' : 'monthly' }} {{ order.hasDonation ? 'donation' : 'payment' }} of {{ craft.smallChange.formatMoney(context.amount|default(order.total), order.currency) }} to {{ settings.charityName ?: siteName }} couldn't be taken, so nothing has been charged.{% if order.hasDonation %} Thank you for giving.{% endif %}</p>
     {% endif %}
     {% if context.invoiceUrl %}
         <p><a href="{{ context.invoiceUrl }}">Update your card and pay now</a></p>

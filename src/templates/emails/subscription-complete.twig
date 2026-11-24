@@ -1,0 +1,9 @@
+{% extends 'small-change/emails/_layout' %}
+
+{% block body %}
+    <h1 style="font-size:20px;margin:0 0 12px;">{{ content.heading ?: 'Your payment plan is complete' }}</h1>
+    {% if content.message %}{{ content.message }}{% else %}
+    <p>That was your last payment of {{ craft.smallChange.formatMoney(context.amount|default(order.total), order.currency) }} to {{ settings.charityName ?: siteName }}{% if context.payments|default(0) %}, payment {{ context.payments }} of {{ context.payments }}{% endif %}. Your plan has now ended and nothing more will be taken.</p>
+    <p>Thank you.</p>
+    {% endif %}
+{% endblock %}

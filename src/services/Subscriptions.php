@@ -16,6 +16,7 @@ use craft\helpers\Db;
 use DateTime;
 use Stripe\Exception\ApiErrorException;
 use Stripe\StripeObject;
+use yii\base\Exception;
 use yii\db\IntegrityException;
 
 /**
@@ -129,6 +130,9 @@ class Subscriptions extends Component
         $record->canceledAt = ($stripeSub->canceled_at ?? null) ? Db::prepareDateForDb((new DateTime())->setTimestamp((int) $stripeSub->canceled_at)) : null;
         $record->endedAt = ($stripeSub->ended_at ?? null) ? Db::prepareDateForDb((new DateTime())->setTimestamp((int) $stripeSub->ended_at)) : null;
         $record->giftAidDeclared = ($metadata->smallChangeGiftAid ?? null) === 'yes';
+        // Set when the plan was started and never changed, so a later sync without the metadata leaves it alone.
+        $payments = $metadata->smallChangePayments ?? null;
+        $record->maxPayments = is_string($payments) && ctype_digit($payments) && (int) $payments > 0 ? (int) $payments : $record->maxPayments;
         // Asking Stripe directly reflects now, so any webhook created before this moment is stale.
         $record->lastStripeEventAt = Db::prepareDateForDb((new DateTime())->setTimestamp($eventCreated ?? time()));
 
@@ -167,6 +171,59 @@ class Subscriptions extends Component
     }
 
     /**
+     * Whether the plan has taken all the payments it was sold with. A subscription with no set number never completes.
+     */
+    public function getIsPlanComplete(Subscription $subscription): bool
+    {
+        return $subscription->id !== null
+            && $subscription->maxPayments !== null
+            && Plugin::getInstance()->payments->countSucceededBySubscription($subscription->id) >= $subscription->maxPayments;
+    }
+
+    /**
+     * Once a plan has taken its last payment, tells Stripe to stop at the end of the period just paid for and
+     * lets the customer know. Safe to call after every payment: only the call that schedules the end sends the email.
+     *
+     * @throws ApiErrorException when Stripe can't be told, so a webhook is retried rather than left to charge again
+     * @throws Exception when the subscription can't be locked
+     */
+    public function endWhenComplete(Subscription $subscription, Order $order): ?Subscription
+    {
+        if ($subscription->id === null || $subscription->maxPayments === null) {
+            return null;
+        }
+
+        $mutex = Craft::$app->getMutex();
+        $lock = 'smallchange:subscription:' . $subscription->id;
+
+        if (!$mutex->acquire($lock, 15)) {
+            throw new Exception('Could not lock subscription ' . $subscription->id . ' to end it.');
+        }
+
+        try {
+            // Reloaded under the lock: another delivery of the same payment may have ended it while this one waited.
+            $current = $this->getSubscriptionById($subscription->id);
+
+            if (!$current || !$current->getIsLive() || $current->cancelAtPeriodEnd || !$this->getIsPlanComplete($current)) {
+                return null;
+            }
+
+            $stripeSub = Plugin::getInstance()->stripe->updateSubscription($current->stripeSubscriptionId, ['cancel_at_period_end' => true]);
+            $ended = $this->syncFromStripe($stripeSub) ?? $current;
+
+            Plugin::getInstance()->emails->queue(Emails::KEY_SUBSCRIPTION_COMPLETE, $order, [
+                'amount' => $current->amount,
+                'interval' => $current->interval,
+                'payments' => (int) $current->maxPayments,
+            ]);
+
+            return $ended;
+        } finally {
+            $mutex->release($lock);
+        }
+    }
+
+    /**
      * Tells the donor and the team it has ended. Done here, on the change itself, so it happens once
      * whether the news came from a webhook, a check with Stripe or a staff member's own cancellation.
      */
@@ -174,7 +231,8 @@ class Subscriptions extends Component
     {
         $order = $subscription->orderId ? Order::find()->id($subscription->orderId)->one() : null;
 
-        if (!$order) {
+        // A plan that took its last payment has already had its own email; it isn't a cancellation.
+        if (!$order || $this->getIsPlanComplete($subscription)) {
             return;
         }
 
@@ -261,6 +319,6 @@ class Subscriptions extends Component
 
     private function toModel(SubscriptionRecord $record): Subscription
     {
-        return new Subscription($record->getAttributes(['id', 'orderId', 'customerId', 'productId', 'stripeMode', 'stripeSubscriptionId', 'status', 'interval', 'amount', 'currency', 'currentPeriodEnd', 'cancelAtPeriodEnd', 'canceledAt', 'endedAt', 'giftAidDeclared', 'lastStripeEventAt', 'lastFailureAt', 'dateCreated']));
+        return new Subscription($record->getAttributes(['id', 'orderId', 'customerId', 'productId', 'stripeMode', 'stripeSubscriptionId', 'status', 'interval', 'amount', 'currency', 'currentPeriodEnd', 'cancelAtPeriodEnd', 'canceledAt', 'endedAt', 'giftAidDeclared', 'maxPayments', 'lastStripeEventAt', 'lastFailureAt', 'dateCreated']));
     }
 }

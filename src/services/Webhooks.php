@@ -562,6 +562,9 @@ class Webhooks extends Component
         $intent = $plugin->stripe->retrievePaymentIntent($intentId, ['latest_charge']);
         $payment = $plugin->payments->recordPaymentIntent($order, $intent, $mode, null, (string) $invoice->id, $local->id);
 
+        // The last payment of a fixed-length plan tells Stripe to stop. If that fails the exception sends the event back to be retried.
+        $plugin->subscriptions->endWhenComplete($local, $order);
+
         if (($invoice->billing_reason ?? '') === 'subscription_create') {
             $plugin->orders->completeOrder($order);
 

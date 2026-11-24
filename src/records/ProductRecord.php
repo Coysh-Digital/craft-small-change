@@ -17,6 +17,8 @@ use craft\db\ActiveRecord;
  * @property bool $allowCustomAmount
  * @property bool $allowRecurring
  * @property string[]|null $recurringIntervals
+ * @property string|null $subscriptionInterval
+ * @property int|null $subscriptionPayments
  */
 class ProductRecord extends ActiveRecord
 {
